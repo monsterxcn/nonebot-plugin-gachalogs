@@ -65,6 +65,7 @@ def img2Base64(pic: Image.Image) -> str:
     return "base64://" + base64_str
 
 
+# 逐行绘制不超过宽度限制的彩色五星历史记录文字
 async def colorfulFive(star5Data: list, fontSize: int, maxWidth: int,
                        isWeapon: bool = False) -> Image.Image:
     ImageSize = (maxWidth, 400)

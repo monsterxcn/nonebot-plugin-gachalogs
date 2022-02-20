@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "nonebot-plugin-gachalogs"
+version = "0.1.0"
+description = "A Genshin GachaLogs analysis plugin for Nonebot2"
+authors = ["monsterxcn <monsterxcn@gmail.com>"]
+documentation = "https://github.com/monsterxcn/nonebot-plugin-gachalogs#readme"
+license = "MIT"
+homepage = "https://github.com/monsterxcn/nonebot-plugin-gachalogs"
+readme = "README.md"
+keywords = ["nonebot", "nonebot2", "genshin", "gacha"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.3,<4.0"
+nonebot2 = ">=2.0.0a14"
+nonebot-adapter-onebot = ">=2.0.0b1"
+httpx = ">=0.20.0, <1.0.0"
+matplotlib = ">=3.5.1"
+xlsxwriter = ">=3.0.2"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

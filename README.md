@@ -6,13 +6,13 @@
 
 <p align="center">
   <a href="https://github.com/monsterxcn/nonebot-plugin-gachalogs/actions">
-    <img src="https://img.shields.io/github/workflow/status/monsterxcn/nonebot-plugin-gachalogs/Build?style=flat-square" alt="actions">
+    <img src="https://img.shields.io/github/workflow/status/monsterxcn/nonebot-plugin-gachalogs/Build%20distributions?style=flat-square" alt="actions">
   </a>
   <a href="https://raw.githubusercontent.com/monsterxcn/nonebot-plugin-gachalogs/master/LICENSE">
     <img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gachalogs?style=flat-square" alt="license">
   </a>
-  <a href="https://pypi.python.org/pypi/nonebot_plugin_gachalogs">
-    <img src="https://img.shields.io/pypi/v/nonebot_plugin_gachalogs?style=flat-square" alt="pypi">
+  <a href="https://pypi.python.org/pypi/nonebot-plugin-gachalogs">
+    <img src="https://img.shields.io/pypi/v/nonebot-plugin-gachalogs?style=flat-square" alt="pypi">
   </a>
   <img src="https://img.shields.io/badge/python-3.7.3+-blue?style=flat-square" alt="python"><br />
 </p></br>
@@ -21,10 +21,11 @@
 **安装方法**
 
 
-使用以下命令安装插件本体（插件暂未发布于 PyPI）：
+使用以下命令安装插件本体 ~~（插件暂未发布于 PyPI）~~：
 
 
-``` zsh
+```bash
+# 从 Git 安装
 git clone https://github.com/monsterxcn/nonebot-plugin-gachalogs.git
 cd nonebot_plugin_gachalogs
 cp -r nonebot_plugin_gachalogs /path/to/nonebot/plugins/
@@ -35,9 +36,24 @@ cp -r resources/gachalogs /path/to/resources/
 然后检查一下，别忘了安装依赖 `matplotlib` `Pillow` `xlsxwriter`！
 
 
-```
+```bash
 python3 -m pip install matplotlib Pillow xlsxwriter
 ```
+
+
+<details><summary><i>从 PyPI 安装</i></summary></br>
+
+
+```bash
+# 从 PyPI 安装
+python3 -m pip install nonebot-plugin-gachalogs
+```
+
+
+从 PyPI 安装后需要手动将 `resources/gachalogs` 文件夹内资源下载到服务端。
+
+
+</details>
 
 
 打开 Nonebot2 正在使用的 `.env` 文件，参考 [.env.example](.env.example) 添加以下配置：
