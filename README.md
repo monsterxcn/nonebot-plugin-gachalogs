@@ -59,7 +59,7 @@ python3 -m pip install nonebot-plugin-gachalogs
 打开 Nonebot2 正在使用的 `.env` 文件，参考 [.env.example](.env.example) 添加以下配置：
 
 
- - `resources_dir` 包含 gachalogs 文件夹的上级目录路径
+ - `resources_dir` 包含 `gachalogs` 文件夹的上级目录路径
  - `gacha_expire_sec` 祈愿历史记录本地缓存过期秒数，不设置默认 1 小时
  - `cos_bucket_name` 腾讯云 COS 存储桶名称
  - `cos_bucket_region` 腾讯云 COS 存储桶地域

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nonebot-plugin-gachalogs",
-    version="0.1.1",
+    version="0.1.2",
     author="monsterxcn",
     author_email="monsterxcn@gmail.com",
     description="A Genshin GachaLogs analysis plugin for Nonebot2",

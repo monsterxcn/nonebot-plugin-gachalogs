@@ -54,9 +54,19 @@ async def gachaHistory(bot: Bot, event: MessageEvent, state: T_State):
                              "* webstatic.mihoyo.com/hk4e/.../#/log 在内即可"))
 async def gachaHistoryRes(bot: Bot, event: MessageEvent, state: T_State):
     qq = event.get_user_id()
-    # 已缓存用户特殊处理
+    state["url"] = str(state["url"])
+    # 未缓存用户
     if "cache" not in state.keys():
-        state["cache"] = {}
+        # 适应 Nonebot2 beta got 装饰器事件处理流程
+        # https://github.com/nonebot/discussions/discussions/74#discussioncomment-1999189
+        if "https" not in state["url"]:
+            await gMatcher.reject(
+                "派蒙将从接下来你回复的内容中找出有效链接用于统计：\n\n"
+                "* webstatic.mihoyo.com/hk4e/.../#/log 在内即可"
+            )
+        # 常规流程获取数据
+        rt = await getGachaData(qq, state["url"], force=state["force"])
+    # 已缓存用户
     else:
         # 不是缓存中的链接，则判定为需要强制刷新
         if state["url"] != state["cache"]["data"]["url"]:
@@ -72,8 +82,9 @@ async def gachaHistoryRes(bot: Bot, event: MessageEvent, state: T_State):
             if "https" not in expireCheck:
                 warnMag = "缓存的链接状态异常！回复链接以更新 / 回复其他内容忽略"
                 await gMatcher.reject(Message(warnMag))
-    # 常规流程，获取数据、生成图片、发送消息
-    rt = await getGachaData(qq, state["url"], state["cache"], state["force"])
+        # 常规流程获取数据
+        rt = await getGachaData(qq, state["url"], state["cache"], state["force"])
+    # 生成图片和消息
     if rt["msg"]:
         await gMatcher.send(Message(rt["msg"]))
     if not rt["data"].get("gachaLogs", ""):
@@ -81,6 +92,8 @@ async def gachaHistoryRes(bot: Bot, event: MessageEvent, state: T_State):
     try:
         imgB64 = await gnrtGachaInfo(rt["data"])
         await gMatcher.finish(MessageSegment.image(imgB64))
+    except OSError:
+        await gMatcher.finish("数据已经成功获取，但是未找到生成图片所需静态资源！")
     except FinishedException:
         pass
     except Exception as e:
