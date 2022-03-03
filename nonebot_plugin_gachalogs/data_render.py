@@ -1,4 +1,4 @@
-import base64
+from base64 import b64encode
 from copy import deepcopy
 from io import BytesIO
 from math import floor
@@ -16,12 +16,6 @@ localDir = getMeta("localDir")
 gachaTypeDict = getMeta("gachaTypeDict")
 pieFontPath = localDir + "LXGW-Bold-minipie.ttf"
 pilFontPath = localDir + "LXGW-{}.ttf"
-# TEXTSTR = [
-#   "鸦羽弓以理服人飞天御剑黎明神铁影阔沐浴龙血的诺艾尔冷刃翡玉法球弹魔导绪论"
-#   "砂糖西风猎黑缨枪讨英杰谭凝光祭礼大匣里灭辰射手之誓迪奥娜北斗安柏琴达利亚"
-#   "吟行秋笛班尼特莫七钟流浪乐章雷泽昭心长菲谢芭拉空残丽莎雨裁绝弦四原典重云"
-#   "秘刻晴阿斯鹰藏辛焱离香菱贯虹槊凯翼卢克无工脊和璞鸢狼末路傲卷贝多斫峰甘",
-# ]
 
 
 # 返回百分数字符串 / 根据百分数返回颜色
@@ -121,8 +115,9 @@ async def calcStat(gachaLogs: dict) -> dict:
         "cntStar3": 0,
         "cntChar4": 0,
         "cntWeapon4": 0,
-        "char5": [],
-        "weapon5": [],
+        "cntChar5": 0,
+        "cntWeapon5": 0,
+        "star5": [],
         "startTime": "",
         "endTime": "",
     }
@@ -143,20 +138,19 @@ async def calcStat(gachaLogs: dict) -> dict:
             itemType = item["item_type"]
             rankType = int(item["rank_type"])
             gachaStat["total"] = counter
-            if rankType == 5:
-                t = "char5" if itemType == "角色" else "weapon5"
-                gachaStat[t].append({"name": itemName, "count": pityCounter})
-                pityCounter = 0
-            elif rankType == 4:
-                t = "cntChar4" if itemType == "角色" else "cntWeapon4"
-                gachaStat[t] = gachaStat[t] + 1
+            if rankType == 3:
+                gachaStat["cntStar3"] += 1
             else:
-                gachaStat["cntStar3"] = gachaStat["cntStar3"] + 1
-        wp5Cnts = [gachaStat["weapon5"][n]["count"]
-                   for n in range(len(gachaStat["weapon5"]))]
-        char5Cnts = [gachaStat["char5"][n]["count"]
-                     for n in range(len(gachaStat["char5"]))]
-        gachaStat["cntNot5"] = counter - sum(wp5Cnts) - sum(char5Cnts)
+                t = "cntChar" if itemType == "角色" else "cntWeapon"
+                gachaStat[t + str(rankType)] += 1
+                if rankType == 5:
+                    gachaStat["star5"].append(
+                        {"name": itemName, "count": pityCounter}
+                    )
+                    pityCounter = 0
+        star5Cnts = [gachaStat["star5"][n]["count"]
+                     for n in range(len(gachaStat["star5"]))]
+        gachaStat["cntNot5"] = counter - sum(star5Cnts)
         if len(gachaList):
             timeNow = strftime("%Y-%m-%d %H:%M:%S", localtime())
             gachaStat["startTime"] = gachaList[0].get("time", timeNow)
@@ -170,8 +164,8 @@ async def drawPie(stat: dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
         {"label": "三星武器", "color": "#73c0de", "total": stat["cntStar3"]},
         {"label": "四星武器", "color": "#91cc75", "total": stat["cntWeapon4"]},
         {"label": "四星角色", "color": "#5470c6", "total": stat["cntChar4"]},
-        {"label": "五星武器", "color": "#ee6666", "total": len(stat["weapon5"])},
-        {"label": "五星角色", "color": "#fac858", "total": len(stat["char5"])},
+        {"label": "五星武器", "color": "#ee6666", "total": stat["cntWeapon5"]},
+        {"label": "五星角色", "color": "#fac858", "total": stat["cntChar5"]},
     ]
     # 如果可显示项目多于 4 项，考虑隐藏三星数据
     showStar3 = True
@@ -201,7 +195,7 @@ async def drawPie(stat: dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
     plt.savefig(ioBytes, format="png")
     ioBytes.seek(0)
     if rt == "base64":
-        b64Code = base64.b64encode(ioBytes.read()).decode()
+        b64Code = b64encode(ioBytes.read()).decode()
         return b64Code, Image.new("RGB", (0, 0)), showStar3
     else:
         return "", Image.open(ioBytes), showStar3
@@ -225,7 +219,7 @@ async def gnrtGachaInfo(rawData: dict) -> str:
                    poolName, font=fs(30), fill="black")
         poolImgH += 20 * 2
         # 绘制饼状图
-        unuse, pieImg, showStar3 = await drawPie(poolStat)
+        _, pieImg, showStar3 = await drawPie(poolStat)
         # pieImg.size = (640, 480)
         pieImg = pieImg.resize((500, int(pieImg.height * 500 / pieImg.width)),
                                Image.ANTIALIAS).convert("RGBA")
@@ -277,7 +271,7 @@ async def gnrtGachaInfo(rawData: dict) -> str:
         # 绘制概率统计
         totalStar = {
             "五星": {
-                "cnt": len(poolStat["weapon5"]) + len(poolStat["char5"]),
+                "cnt": poolStat["cntWeapon5"] + poolStat["cntChar5"],
                 "color": "#C0713D"
             },
             "四星": {
@@ -303,7 +297,7 @@ async def gnrtGachaInfo(rawData: dict) -> str:
             poolImgH += fs(25).getsize(cntStr)[1] + 20
         # 绘制五星物品统计
         poolImgH += 20
-        star5Data = [*poolStat["char5"], *poolStat["weapon5"]]
+        star5Data = poolStat["star5"]
         if star5Data:
             statPic = await colorfulFive(star5Data, 25, 460, isWeapon)
             statPicW, statPicH = statPic.size
@@ -339,7 +333,7 @@ async def gnrtGachaInfoHtml(rawData: dict) -> str:
         poolName = gachaTypeDict[gachaType]
         poolTotal = poolStat["total"]
         # 数据饼图与抽卡时间
-        chartB64, unuse, showStar3 = await drawPie(poolStat, rt="base64")
+        chartB64, _, _ = await drawPie(poolStat, rt="base64")
         startTime = poolStat["startTime"]
         endTime = poolStat["endTime"]
         timeStat = f"{startTime} ~ {endTime}"
