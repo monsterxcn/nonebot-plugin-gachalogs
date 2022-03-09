@@ -55,7 +55,7 @@ def fs(size: int, width: str = "Bold"):
 def img2Base64(pic: Image.Image) -> str:
     buf = BytesIO()
     pic.save(buf, format="PNG", quality=100)
-    base64_str = base64.b64encode(buf.getbuffer()).decode()
+    base64_str = b64encode(buf.getbuffer()).decode()
     return "base64://" + base64_str
 
 
