@@ -17,13 +17,14 @@ except ImportError:
 
 from .data_export import exportGacha
 from .data_render import gnrtGachaInfo
-from .data_source import checkLogUrl, getCacheData, getGachaData
+from .data_source import cacheData, checkLogUrl, getCacheData, getGachaData
 from .upload_cos import initCosClient, uploadFile
 
 cosClient = initCosClient()
 
 gMatcher = on_command("抽卡记录", aliases={"ckjl"}, priority=1)
 eMatcher = on_command("抽卡记录导出", aliases={"gcexport", "ckjldc"}, priority=1)
+dMatcher = on_command("抽卡记录重置", aliases={"gcdelete", "ckjlcz"}, priority=1)
 # iMatcher = on_command("抽卡记录导入", aliases={"gcimport", "ckjldr"}, priority=1)
 # fMatcher = on_notice("offline_file", priority=100)
 
@@ -161,6 +162,38 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
         os.remove(exData["file"])
     except Exception:
         pass
+
+
+@dMatcher.handle()
+async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
+    op = event.get_user_id()
+    comfirm = True if "-f" in event.get_plaintext() else False
+    user = ""
+    for msgSeg in event.message:
+        if msgSeg.type == "at":
+            user = msgSeg.data["qq"]
+            break
+        elif msgSeg.type == "text":
+            user = str(msgSeg.data["text"].replace("-f", "")).strip()
+            break
+        else:
+            continue
+    user = op if user == "" else user
+    if op != user and op not in bot.config.superusers:
+        await dMatcher.finish(f"你没有权限删除用户 {user} 的抽卡记录！")
+    if not comfirm:
+        rejectMsg = (
+            f"将要重置 / 清空用户 {user} 的抽卡记录，"
+            "确认无误请在刚刚的命令后附带 -f 重试！"
+        )
+        await dMatcher.finish(Message(rejectMsg))
+    localFile = await getCacheData(user, readCache=False)
+    if "json" not in localFile["msg"]:
+        msg = localFile["msg"]
+    else:
+        res = await cacheData(user, {"delete": localFile["msg"]})
+        msg = res if "失败" in res else "重置抽卡记录成功！"
+    await dMatcher.finish(Message(msg), at_sender=True)
 
 
 # @iMatcher.handle()

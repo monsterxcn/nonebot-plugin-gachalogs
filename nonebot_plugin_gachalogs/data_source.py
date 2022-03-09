@@ -74,7 +74,7 @@ async def checkLogUrl(logUrl: str) -> str:
 # 返回值：dict
 #   msg: "" / 错误信息
 #   data: 抽卡记录数据 / {"time": int}
-async def getCacheData(qq: str) -> dict:
+async def getCacheData(qq: str, readCache: bool = True) -> dict:
     cache = {"msg": "", "data": {}}
     cacheFile = localDir + "cache-config.json"
     # 本地无缓存配置文件时，创建缓存配置文件
@@ -92,6 +92,9 @@ async def getCacheData(qq: str) -> dict:
         cache["data"]["time"] = int(time()) - expireSec - 1
         return cache
     # 本地有用户缓存时读取缓存的抽卡记录
+    if not readCache:
+        cache["msg"] = cacheConfig[qq]
+        return cache
     with open(cacheConfig[qq], "r", encoding="utf-8") as f:
         cachedRawData = json.load(f)
     cache["data"] = cachedRawData
@@ -182,19 +185,38 @@ async def getRawData(logUrl: str, force: bool = False) -> dict:
 
 
 # 缓存数据 [filewrite]
-async def cacheData(qq: str, rawData: dict) -> None:
-    uid = rawData["uid"]
-    # 创建 UID 对应缓存文件
-    cacheFile = localDir + f"cache-{uid}.json"
-    with open(cacheFile, "w", encoding="utf-8") as f:
-        json.dump(rawData, f, ensure_ascii=False, indent=2)
+async def cacheData(qq: str, rawData: dict) -> str:
+    if "delete" in rawData.keys():
+        cacheFile = rawData["delete"]
+        uid = re.search(r"cache-(.*)\.json", cacheFile)
+        if uid is not None:
+            uid = uid.group(1)
+        else:
+            return "失败！\n['uid' not found]"
+        if os.path.isfile(rawData["delete"]):
+            try:
+                os.remove(rawData["delete"])
+            except Exception as e:
+                logger.error("抽卡记录缓存删除出错："
+                             + str(sys.exc_info()[0]) + "\n" + str(e))
+                return "失败！\n[{}]".format(str(sys.exc_info()[0]))
+    else:
+        uid = rawData["uid"]
+        # 创建 UID 对应缓存文件
+        cacheFile = localDir + f"cache-{uid}.json"
+        with open(cacheFile, "w", encoding="utf-8") as f:
+            json.dump(rawData, f, ensure_ascii=False, indent=2)
     # 更新用于 getCacheData 的缓存配置文件
     cgfFile = localDir + "cache-config.json"
     with open(cgfFile, "r", encoding="utf-8") as f:
         cacheConfig = json.load(f)
-    cacheConfig[qq] = cacheFile
+    if "delete" in rawData.keys():
+        cacheConfig.pop(qq)
+    else:
+        cacheConfig[qq] = cacheFile
     with open(cgfFile, "w", encoding="utf-8") as f:
         json.dump(cacheConfig, f, ensure_ascii=False, indent=2)
+    return "成功！"
 
 
 # 合并数据 [cacheData]
