@@ -35,7 +35,9 @@ async def checkAuthKey(url: str) -> str:
                      + str(sys.exc_info()[0]) + "\n" + str(e))
         return "检查链接时效性出错\n[{}]".format(str(sys.exc_info()[0]))
     if not resJson["data"]:
-        return "链接 AuthKey 可能失效\n[{}]".format(resJson["message"])
+        if resJson["message"] == "authkey timeout":
+            return "抽卡链接 AuthKey 已经失效，尝试返回缓存内容.."
+        return resJson["message"]
     return "成功"
 
 
@@ -210,9 +212,15 @@ async def mergeData(cache: dict, raw: dict, qq: str, fw: bool = True) -> dict:
         if raw["data"].get("gachaLogs", {}):
             await cacheData(qq, raw["data"])
         return raw
-    # 既有缓存数据又有新增数据，执行合并
+    # 既有缓存数据又有新增数据
     locData = cache["data"]
     newData = raw["data"]
+    # 检查 UID 是否为同一账号
+    if locData["uid"] != newData["uid"]:
+        warnMsg = "缓存与新增数据 UID 不同，合并记录中断！"
+        cache["msg"] += "\n".join(raw["msg"], warnMsg)
+        return cache
+    # 执行合并
     msgList = []
     merged = {"msg": "", "data": {}}
     for gachaType in gachaTypeDict:

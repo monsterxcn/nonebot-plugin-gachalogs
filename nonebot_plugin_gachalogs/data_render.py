@@ -204,11 +204,10 @@ async def drawPie(stat: dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
 # 通过 PIL 和 matplotlib 绘制统计信息图片
 async def gnrtGachaInfo(rawData: dict) -> str:
     wishStat = await calcStat(rawData["gachaLogs"])
-    # print(wishStat)
     gotPool = [key for key in wishStat if wishStat[key]["total"] > 0]
     imageList = []
     for gachaType in gotPool:
-        poolImg = Image.new("RGBA", (500, 1000), "#f9f9f9")
+        poolImg = Image.new("RGBA", (500, 1500), "#f9f9f9")
         tDraw = ImageDraw.Draw(poolImg)
         poolStat = wishStat[gachaType]
         poolName = gachaTypeDict[gachaType]
@@ -308,14 +307,19 @@ async def gnrtGachaInfo(rawData: dict) -> str:
         poolImgH += 20
         poolImg = poolImg.crop((0, 0, 500, poolImgH))
         imageList.append(poolImg)
+    # 右下角待绘制数据（更新时间戳及 UID
+    # reportTime = strftime("%m-%d %H:%M:%S", localtime(rawData["time"]))
+    stampStr = f"[{rawData['uid'].replace(rawData['uid'][3:-3], '***', 1)}]"
+    stampW, stampH = fs(30).getsize(stampStr)
     # 合并图片
+    maxWidth = 500 * len(imageList)
     maxHeight = max([img.height for img in imageList])
-    resultImg = Image.new("RGBA", (500 * len(imageList), maxHeight), "#f9f9f9")
+    resultImg = Image.new("RGBA", (maxWidth, maxHeight), "#f9f9f9")
+    tDraw = ImageDraw.Draw(resultImg)
     for i, img in enumerate(imageList):
         resultImg.paste(img, (500 * i, 0), img)
-    # resultImg.save("/home/ubuntu/paimon/resources/gacha/result.png", "PNG")
-    # bgImg = Image.open(f"pic.png")
-    # result.paste(bgImg, (coordX, coordY), bgImg)
+    tDraw.text((int(maxWidth - stampW), int(maxHeight - stampH)),
+               stampStr, font=fs(30), fill="#808080")
     resImgB64 = img2Base64(resultImg)
     return resImgB64
 
