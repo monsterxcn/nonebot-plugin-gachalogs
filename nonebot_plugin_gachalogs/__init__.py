@@ -135,10 +135,11 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
         await eMatcher.finish(Message(exData["msg"]))
     elif isinstance(event, GroupMessageEvent):
         try:
+            fname=exData["file"].split(os.sep)[-1]
             await bot.upload_group_file(
                 group_id=event.group_id,
-                file=exData["file"],
-                name=exData["file"].split(os.sep)[-1],
+                file=os.path.join(os.path.dirname(__file__),'gachalogs',fname),
+                name=fname,
             )
         except Exception as e:
             logger.error(
