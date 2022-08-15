@@ -20,13 +20,13 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=['nonebot-plugin-gachalogs'],
+    packages=["nonebot-plugin-gachalogs"],
     python_requires=">=3.7.3,<4.0",
     install_requires=[
-        'nonebot2>=2.0.0a14',
-        'nonebot-adapter-onebot>=2.0.0b1',
-        'httpx>=0.20.0,<1.0.0',
-        'matplotlib>=3.5.1',
-        'xlsxWriter>=3.0.2'
+        "nonebot2>=2.0.0a14",
+        "nonebot-adapter-onebot>=2.0.0b1",
+        "httpx>=0.20.0,<1.0.0",
+        "matplotlib>=3.5.1",
+        "xlsxWriter>=3.0.2",
     ],
 )

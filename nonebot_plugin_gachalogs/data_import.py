@@ -18,25 +18,27 @@ async def importUIGF(qq: str, uigfData: dict) -> dict:
             "200": [],
             "301": [],
             "302": [],
-        }
+        },
     }
     rt = {"msg": "", "data": rawData}
     uigfData["list"].reverse()
     for item in uigfData["list"]:
         gachaType = item.get("gacha_type", "")
         uigfType = item.get("uigf_gacha_type", "")
-        item.update({
-            "uid": item.get("uid", rawData["uid"]),
-            "gacha_type": gachaType if gachaType != "" else uigfType,
-            "item_id": item.get("item_id", ""),
-            "count": item.get("count", "1"),
-            "time": item["time"],
-            "name": item["name"],
-            "lang": item.get("lang", "zh-cn"),
-            "item_type": item["item_type"],
-            "rank_type": item["rank_type"],
-            "id": item["id"],
-        })
+        item.update(
+            {
+                "uid": item.get("uid", rawData["uid"]),
+                "gacha_type": gachaType if gachaType != "" else uigfType,
+                "item_id": item.get("item_id", ""),
+                "count": item.get("count", "1"),
+                "time": item["time"],
+                "name": item["name"],
+                "lang": item.get("lang", "zh-cn"),
+                "item_type": item["item_type"],
+                "rank_type": item["rank_type"],
+                "id": item["id"],
+            }
+        )
         item.pop("uigf_gacha_type")
         nowType = item["gacha_type"]
         gachaTypeId = nowType if nowType != "400" else "301"

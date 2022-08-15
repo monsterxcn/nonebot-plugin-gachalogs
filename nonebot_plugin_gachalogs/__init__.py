@@ -7,13 +7,21 @@ from nonebot.log import logger
 from nonebot.typing import T_State
 
 try:
-    from nonebot.adapters.onebot.v11 import (Bot, GroupMessageEvent, Message,
-                                             MessageEvent, MessageSegment,
-                                             PrivateMessageEvent)
+    from nonebot.adapters.onebot.v11 import (
+        Bot,
+        GroupMessageEvent,
+        Message,
+        MessageEvent,
+        MessageSegment,
+        PrivateMessageEvent,
+    )
 except ImportError:
-    from nonebot.adapters.cqhttp import Bot, Message, MessageSegment
-    from nonebot.adapters.cqhttp.event import (GroupMessageEvent, MessageEvent,
-                                               PrivateMessageEvent)
+    from nonebot.adapters.cqhttp import Bot, Message, MessageSegment  # type: ignore
+    from nonebot.adapters.cqhttp.event import (  # type: ignore
+        GroupMessageEvent,
+        MessageEvent,
+        PrivateMessageEvent,
+    )
 
 from .data_export import exportGacha
 from .data_render import gnrtGachaInfo
@@ -51,8 +59,12 @@ async def gachaHistory(bot: Bot, event: MessageEvent, state: T_State):
 
 
 # Message.template("{next}")
-@gMatcher.got("url", prompt=("派蒙将从接下来你回复的内容中找出有效链接用于统计：\n\n"
-                             "* webstatic.mihoyo.com/hk4e/.../#/log 在内即可"))
+@gMatcher.got(
+    "url",
+    prompt=(
+        "派蒙将从接下来你回复的内容中找出有效链接用于统计：\n\n" "* webstatic.mihoyo.com/hk4e/.../#/log 在内即可"
+    ),
+)
 async def gachaHistoryRes(bot: Bot, event: MessageEvent, state: T_State):
     qq = event.get_user_id()
     state["url"] = str(state["url"])
@@ -100,8 +112,10 @@ async def gachaHistoryRes(bot: Bot, event: MessageEvent, state: T_State):
     except Exception as e:
         logger.error("抽卡记录图片生成出错：" + str(sys.exc_info()[0]) + "\n" + str(e))
         await bot.send_private_msg(
-            message=(f"[error] [genshin_export]\n由用户 {event.get_user_id()} 触发"
-                     f"\n{str(sys.exc_info()[0])}\n{str(e)}"),
+            message=(
+                f"[error] [genshin_export]\n由用户 {event.get_user_id()} 触发"
+                f"\n{str(sys.exc_info()[0])}\n{str(e)}"
+            ),
             user_id=int(list(bot.config.superusers)[0]),
         )
 
@@ -136,15 +150,12 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
     elif isinstance(event, GroupMessageEvent):
         try:
             await bot.upload_group_file(
-                group_id=event.group_id,
+                group_id=event.group_id,  # type: ignore
                 file=exData["file"],
                 name=exData["file"].split(os.sep)[-1],
             )
         except Exception as e:
-            logger.error(
-                "发送抽卡记录导出群文件失败："
-                + str(sys.exc_info()[0]) + "\n" + str(e)
-            )
+            logger.error("发送抽卡记录导出群文件失败：" + str(sys.exc_info()[0]) + "\n" + str(e))
             exData["msg"] += "但是群文件上传失败，稍后再试吧！"
     elif isinstance(event, PrivateMessageEvent):
         if not cosClient:
@@ -182,10 +193,7 @@ async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
     if op != user and op not in bot.config.superusers:
         await dMatcher.finish(f"你没有权限删除用户 {user} 的抽卡记录！")
     if not comfirm:
-        rejectMsg = (
-            f"将要重置 / 清空用户 {user} 的抽卡记录，"
-            "确认无误请在刚刚的命令后附带 -f 重试！"
-        )
+        rejectMsg = f"将要重置 / 清空用户 {user} 的抽卡记录，" "确认无误请在刚刚的命令后附带 -f 重试！"
         await dMatcher.finish(Message(rejectMsg))
     localFile = await getCacheData(user, readCache=False)
     if "json" not in localFile["msg"]:

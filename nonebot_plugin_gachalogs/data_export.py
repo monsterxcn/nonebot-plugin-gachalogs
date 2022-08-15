@@ -28,9 +28,9 @@ async def transUIGF(uid: str, gachaLogs: dict) -> dict:
             "export_timestamp": int(time()),
             "export_app": "nonebot-genshin-gacha-export",
             "export_app_version": "v0.1.0",
-            "uigf_version": "v2.2"
+            "uigf_version": "v2.2",
         },
-        "list": []
+        "list": [],
     }
     # 写入数据
     for gachaType in gachaTypeDict:
@@ -61,22 +61,26 @@ async def transXLSX(uid: str, gachaLogs: dict, uigfList: list) -> str:
     for gachaType in gachaTypeList:
         # 新建页面和样式
         worksheet = wb.add_worksheet(gachaTypeDict[gachaType])
-        headerStyle = wb.add_format({
-            "align": "left",
-            "font_name": "微软雅黑",
-            "color": "#757575",
-            "bg_color": "#dbd7d3",
-            "border_color": "#c4c2bf",
-            "border": 1,
-            "bold": True
-        })
-        contentStyle = wb.add_format({
-            "align": "left",
-            "font_name": "微软雅黑",
-            "border_color": "#c4c2bf",
-            "bg_color": "#ebebeb",
-            "border": 1
-        })
+        headerStyle = wb.add_format(
+            {
+                "align": "left",
+                "font_name": "微软雅黑",
+                "color": "#757575",
+                "bg_color": "#dbd7d3",
+                "border_color": "#c4c2bf",
+                "border": 1,
+                "bold": True,
+            }
+        )
+        contentStyle = wb.add_format(
+            {
+                "align": "left",
+                "font_name": "微软雅黑",
+                "border_color": "#c4c2bf",
+                "bg_color": "#ebebeb",
+                "border": 1,
+            }
+        )
         star5Style = wb.add_format({"color": "#bd6932", "bold": True})
         star4Style = wb.add_format({"color": "#a256e1", "bold": True})
         star3Style = wb.add_format({"color": "#8e8e8e"})
@@ -102,8 +106,13 @@ async def transXLSX(uid: str, gachaLogs: dict, uigfList: list) -> str:
             counter = counter + 1
             pityCounter = pityCounter + 1
             content = [
-                timeStr, itemName, itemType, rankType,
-                gachaTypeName, counter, pityCounter
+                timeStr,
+                itemName,
+                itemType,
+                rankType,
+                gachaTypeName,
+                counter,
+                pityCounter,
             ]
             worksheet.write_row(counter, 0, content, contentStyle)
             if content[3] == 5:
@@ -112,22 +121,40 @@ async def transXLSX(uid: str, gachaLogs: dict, uigfList: list) -> str:
         contentRow1st, contentCol1st = 1, 0
         contentRowLast, contentColLast = len(gachaList), len(header) - 1
         worksheet.conditional_format(
-            contentRow1st, contentCol1st, contentRowLast, contentColLast,
-            {"type": "formula", "criteria": "=$D2=3", "format": star3Style}
+            contentRow1st,
+            contentCol1st,
+            contentRowLast,
+            contentColLast,
+            {"type": "formula", "criteria": "=$D2=3", "format": star3Style},
         )
         worksheet.conditional_format(
-            contentRow1st, contentCol1st, contentRowLast, contentColLast,
-            {"type": "formula", "criteria": "=$D2=4", "format": star4Style}
+            contentRow1st,
+            contentCol1st,
+            contentRowLast,
+            contentColLast,
+            {"type": "formula", "criteria": "=$D2=4", "format": star4Style},
         )
         worksheet.conditional_format(
-            contentRow1st, contentCol1st, contentRowLast, contentColLast,
-            {"type": "formula", "criteria": "=$D2=5", "format": star5Style}
+            contentRow1st,
+            contentCol1st,
+            contentRowLast,
+            contentColLast,
+            {"type": "formula", "criteria": "=$D2=5", "format": star5Style},
         )
     # 原始数据表
     worksheet = wb.add_worksheet("原始数据")
     rawHeader = [
-        "count", "gacha_type", "id", "item_id", "item_type", "lang",
-        "name", "rank_type", "time", "uid", "uigf_gacha_type"
+        "count",
+        "gacha_type",
+        "id",
+        "item_id",
+        "item_type",
+        "lang",
+        "name",
+        "rank_type",
+        "time",
+        "uid",
+        "uigf_gacha_type",
     ]
     worksheet.write_row(0, 0, rawHeader)
     allCounter = 0
@@ -144,8 +171,17 @@ async def transXLSX(uid: str, gachaLogs: dict, uigfList: list) -> str:
         uigfUid = item.get("uid", "")
         uigfGachaType = item.get("uigf_gacha_type", "")
         rawContent = [
-            count, gachaType, id, itemId, itemType, lang,
-            name, rankType, timeStr, uigfUid, uigfGachaType
+            count,
+            gachaType,
+            id,
+            itemId,
+            itemType,
+            lang,
+            name,
+            rankType,
+            timeStr,
+            uigfUid,
+            uigfGachaType,
         ]
         worksheet.write_row(allCounter + 1, 0, rawContent)
         allCounter += 1

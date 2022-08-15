@@ -1,4 +1,3 @@
-
 import json
 import os
 import re
@@ -31,8 +30,7 @@ async def checkAuthKey(url: str) -> str:
         #           encoding="utf-8") as f:
         #     json.dump(resJson, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        logger.error("抽卡记录 API 请求解析出错："
-                     + str(sys.exc_info()[0]) + "\n" + str(e))
+        logger.error("抽卡记录 API 请求解析出错：" + str(sys.exc_info()[0]) + "\n" + str(e))
         return "检查链接时效性出错\n[{}]".format(str(sys.exc_info()[0]))
     if not resJson["data"]:
         if resJson["message"] == "authkey timeout":
@@ -107,13 +105,15 @@ def getGachaLogsApi(url: str, page: int, typeId: str, endId: str) -> str:
     parsed = parse.urlparse(url)
     querys = parse.parse_qsl(str(parsed.query))
     paramDict = dict(querys)
-    paramDict.update({
-        "size": "20",  # 限制单页最大获取总抽数 20
-        "gacha_type": typeId,
-        "page": str(page),
-        "lang": "zh-cn",
-        "end_id": endId,
-    })
+    paramDict.update(
+        {
+            "size": "20",  # 限制单页最大获取总抽数 20
+            "gacha_type": typeId,
+            "page": str(page),
+            "lang": "zh-cn",
+            "end_id": endId,
+        }
+    )
     param = parse.urlencode(paramDict)
     path = str(url).split("?")[0]
     api = path + "?" + param
@@ -164,12 +164,7 @@ async def getRawData(logUrl: str, force: bool = False) -> dict:
         return raw
     # 获取最新抽卡记录
     uidGot = False
-    gachaData = {
-        "uid": "",
-        "time": "",
-        "url": logUrlChecked,
-        "gachaLogs": {}
-    }
+    gachaData = {"uid": "", "time": "", "url": logUrlChecked, "gachaLogs": {}}
     for gachaType in gachaTypeDict:
         gachaList = await getGachaList(logUrlChecked, gachaType)
         gachaData["gachaLogs"][gachaType] = gachaList
@@ -197,8 +192,7 @@ async def cacheData(qq: str, rawData: dict) -> str:
             try:
                 os.remove(rawData["delete"])
             except Exception as e:
-                logger.error("抽卡记录缓存删除出错："
-                             + str(sys.exc_info()[0]) + "\n" + str(e))
+                logger.error("抽卡记录缓存删除出错：" + str(sys.exc_info()[0]) + "\n" + str(e))
                 return "失败！\n[{}]".format(str(sys.exc_info()[0]))
     else:
         uid = rawData["uid"]
@@ -240,7 +234,7 @@ async def mergeData(cache: dict, raw: dict, qq: str, fw: bool = True) -> dict:
     # 检查 UID 是否为同一账号
     if locData["uid"] != newData["uid"]:
         warnMsg = "缓存与新增数据 UID 不同，合并记录中断！"
-        cache["msg"] += "\n".join(raw["msg"], warnMsg)
+        cache["msg"] += "\n".join([raw["msg"], warnMsg])
         return cache
     # 执行合并
     msgList = []
@@ -283,8 +277,9 @@ async def mergeData(cache: dict, raw: dict, qq: str, fw: bool = True) -> dict:
 # 返回值：dict
 #   msg: "" / 合并消息 / 错误信息
 #   data: 抽卡记录数据 / 合并数据 / {"": "", ...}
-async def getGachaData(qq: str, logUrl: str = "",
-                       cache: dict = {}, force: bool = False) -> dict:
+async def getGachaData(
+    qq: str, logUrl: str = "", cache: dict = {}, force: bool = False
+) -> dict:
     # 读取缓存
     cache = await getCacheData(qq) if not cache else cache
     now = int(time())

@@ -60,8 +60,9 @@ def img2Base64(pic: Image.Image) -> str:
 
 
 # 逐行绘制不超过宽度限制的彩色五星历史记录文字
-async def colorfulFive(star5Data: list, fontSize: int, maxWidth: int,
-                       isWeapon: bool = False) -> Image.Image:
+async def colorfulFive(
+    star5Data: list, fontSize: int, maxWidth: int, isWeapon: bool = False
+) -> Image.Image:
     ImageSize = (maxWidth, 400)
     coordX, coordY = 0, 0
     fontPadding = 10
@@ -78,21 +79,18 @@ async def colorfulFive(star5Data: list, fontSize: int, maxWidth: int,
         for word in [item["name"], f"[{item['count']}]"]:
             wordW = fs(fontSize).getsize(word)[0]
             if coordX + wordW <= maxWidth:
-                tDraw.text((coordX, coordY),
-                           word, font=fs(fontSize), fill=color)
+                tDraw.text((coordX, coordY), word, font=fs(fontSize), fill=color)
                 coordX += wordW + spaceW / 2
             elif word[0] == "[":
                 coordX, coordY = 0, (coordY + stepY)
-                tDraw.text((coordX, coordY),
-                           word, font=fs(fontSize), fill=color)
+                tDraw.text((coordX, coordY), word, font=fs(fontSize), fill=color)
                 coordX = wordW + spaceW
             else:
                 aval = int((maxWidth - coordX) / spaceW)
                 splitStr = [item["name"][:aval], item["name"][aval:]]
                 for i in range(len(splitStr)):
                     s = splitStr[i]
-                    tDraw.text((coordX, coordY),
-                               s, font=fs(fontSize), fill=color)
+                    tDraw.text((coordX, coordY), s, font=fs(fontSize), fill=color)
                     if i == 0:
                         coordX, coordY = 0, (coordY + stepY)
                     else:
@@ -101,8 +99,12 @@ async def colorfulFive(star5Data: list, fontSize: int, maxWidth: int,
     coordY += stepY + fontPadding * 2
     star5Avg = average([item["count"] for item in star5Data])
     tDraw.text((0, coordY), "五星平均抽数：", font=fs(fontSize), fill="black")
-    tDraw.text((indent1st, coordY), f"{star5Avg:.2f}", font=fs(fontSize),
-               fill=percent(round(star5Avg), 80 if isWeapon else 90, "color"))
+    tDraw.text(
+        (indent1st, coordY),
+        f"{star5Avg:.2f}",
+        font=fs(fontSize),
+        fill=percent(round(star5Avg), 80 if isWeapon else 90, "color"),
+    )
     result = result.crop((0, 0, maxWidth, coordY + fH))
     return result
 
@@ -144,12 +146,11 @@ async def calcStat(gachaLogs: dict) -> dict:
                 t = "cntChar" if itemType == "角色" else "cntWeapon"
                 gachaStat[t + str(rankType)] += 1
                 if rankType == 5:
-                    gachaStat["star5"].append(
-                        {"name": itemName, "count": pityCounter}
-                    )
+                    gachaStat["star5"].append({"name": itemName, "count": pityCounter})
                     pityCounter = 0
-        star5Cnts = [gachaStat["star5"][n]["count"]
-                     for n in range(len(gachaStat["star5"]))]
+        star5Cnts = [
+            gachaStat["star5"][n]["count"] for n in range(len(gachaStat["star5"]))
+        ]
         gachaStat["cntNot5"] = counter - sum(star5Cnts)
         if len(gachaList):
             timeNow = strftime("%Y-%m-%d %H:%M:%S", localtime())
@@ -176,18 +177,25 @@ async def drawPie(stat: dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
     labels = [p["label"] for p in partMap if p["total"]]
     colors = [p["color"] for p in partMap if p["total"]]
     sizes = [p["total"] for p in partMap if p["total"]]
-    explode = [
-        (0.05 if "五星" in p["label"] else 0)
-        for p in partMap if p["total"]
-    ]
+    explode = [(0.05 if "五星" in p["label"] else 0) for p in partMap if p["total"]]
     # 绘制饼图
     fig, ax = plt.subplots()
     fmProp = fm.FontProperties(fname=pieFontPath)
     txtProp = {"fontsize": 16, "fontproperties": fmProp}
     ax.set_facecolor("#f9f9f9")
-    ax.pie(sizes, labels=labels, colors=colors, autopct='%0.2f%%',
-           labeldistance=1.1, pctdistance=0.7, startangle=60, radius=0.7,
-           explode=explode, shadow=False, textprops=txtProp)
+    ax.pie(
+        sizes,
+        labels=labels,
+        colors=colors,
+        autopct="%0.2f%%",
+        labeldistance=1.1,
+        pctdistance=0.7,
+        startangle=60,
+        radius=0.7,
+        explode=explode,
+        shadow=False,
+        textprops=txtProp,
+    )
     ax.axis("equal")
     plt.tight_layout()
     # 生成图片
@@ -214,27 +222,34 @@ async def gnrtGachaInfo(rawData: dict) -> str:
         isWeapon = True if gachaType == "302" else False
         # 绘制标题
         poolNameW, poolImgH = fs(30).getsize(poolName)
-        tDraw.text((int((500 - poolNameW) / 2), 20),
-                   poolName, font=fs(30), fill="black")
+        tDraw.text(
+            (int((500 - poolNameW) / 2), 20), poolName, font=fs(30), fill="black"
+        )
         poolImgH += 20 * 2
         # 绘制饼状图
         _, pieImg, showStar3 = await drawPie(poolStat)
         # pieImg.size = (640, 480)
-        pieImg = pieImg.resize((500, int(pieImg.height * 500 / pieImg.width)),
-                               Image.ANTIALIAS).convert("RGBA")
+        pieImg = pieImg.resize(
+            (500, int(pieImg.height * 500 / pieImg.width)), Image.ANTIALIAS
+        ).convert("RGBA")
         poolImg.paste(pieImg, (0, poolImgH), pieImg)
         poolImgH += pieImg.height
         if not showStar3:
-            tDraw.text((15, int(poolImgH - 35)),
-                       "* 三星武器数据已隐藏", font=fs(20), fill="#808080")
+            tDraw.text(
+                (15, int(poolImgH - 35)), "* 三星武器数据已隐藏", font=fs(20), fill="#808080"
+            )
         # 绘制抽卡时间
         startTime = poolStat["startTime"].split(" ")[0]
         endTime = poolStat["endTime"].split(" ")[0]
         timeStat = f"{startTime} ~ {endTime}"
         poolImgH += 10
         timeStatW, timeStatH = fs(20).getsize(timeStat)
-        tDraw.text((int((500 - timeStatW) / 2), poolImgH),
-                   timeStat, font=fs(20), fill="#808080")
+        tDraw.text(
+            (int((500 - timeStatW) / 2), poolImgH),
+            timeStat,
+            font=fs(20),
+            fill="#808080",
+        )
         poolImgH += timeStatH + 20
         # 绘制抽数统计
         poolTotal = poolStat["total"]
@@ -246,53 +261,49 @@ async def gnrtGachaInfo(rawData: dict) -> str:
         totalStr5 = str(notStar5)
         totalStr6 = " 抽未出 5 星"
         startW = 20
-        tDraw.text((startW, poolImgH), totalStr1,
-                   font=fs(25), fill="black")
+        tDraw.text((startW, poolImgH), totalStr1, font=fs(25), fill="black")
         startW += fs(25).getsize(totalStr1)[0]
-        tDraw.text((startW, poolImgH), totalStr2,
-                   font=fs(25), fill="rgb(24,144,255)")
+        tDraw.text((startW, poolImgH), totalStr2, font=fs(25), fill="rgb(24,144,255)")
         startW += fs(25).getsize(totalStr2)[0]
-        tDraw.text((startW, poolImgH), totalStr3,
-                   font=fs(25), fill="black")
+        tDraw.text((startW, poolImgH), totalStr3, font=fs(25), fill="black")
         if notStar5 > 0 and poolName != "新手祈愿":
             pityCnt = 80 if isWeapon else 90
             notStar5Color = percent(notStar5, pityCnt, "color")
             startW += fs(25).getsize(totalStr3)[0]
-            tDraw.text((startW, poolImgH), totalStr4,
-                       font=fs(25), fill="black")
+            tDraw.text((startW, poolImgH), totalStr4, font=fs(25), fill="black")
             startW += fs(25).getsize(totalStr4)[0]
-            tDraw.text((startW, poolImgH), totalStr5,
-                       font=fs(25), fill=notStar5Color)
+            tDraw.text((startW, poolImgH), totalStr5, font=fs(25), fill=notStar5Color)
             startW += fs(25).getsize(totalStr5)[0]  # "rgb(47,192,22)"
-            tDraw.text((startW, poolImgH), totalStr6,
-                       font=fs(25), fill="black")
+            tDraw.text((startW, poolImgH), totalStr6, font=fs(25), fill="black")
         poolImgH += fs(25).getsize(totalStr1)[1] + 20 * 2
         # 绘制概率统计
         totalStar = {
             "五星": {
                 "cnt": poolStat["cntWeapon5"] + poolStat["cntChar5"],
-                "color": "#C0713D"
+                "color": "#C0713D",
             },
             "四星": {
                 "cnt": poolStat["cntWeapon4"] + poolStat["cntChar4"],
-                "color": "#A65FE2"
+                "color": "#A65FE2",
             },
-            "三星": {
-                "cnt": poolStat["cntStar3"],
-                "color": "#4D8DF7"
-            },
+            "三星": {"cnt": poolStat["cntStar3"], "color": "#4D8DF7"},
         }
         probList = [
             {"level": key, "total": value["cnt"], "color": value["color"]}
-            for key, value in totalStar.items() if value["cnt"] > 0
+            for key, value in totalStar.items()
+            if value["cnt"] > 0
         ]
         for item in probList:
             cntStr = f"{item['level']}：{item['total']} 次"
             probStr = f"[{item['total'] / poolTotal * 100:.2f}%]"
             tDraw.text((20, poolImgH), cntStr, font=fs(25), fill=item["color"])
             probStrW = fs(25).getsize(probStr)[0]
-            tDraw.text((int(400 - probStrW), poolImgH), probStr,
-                       font=fs(25), fill=item["color"])
+            tDraw.text(
+                (int(400 - probStrW), poolImgH),
+                probStr,
+                font=fs(25),
+                fill=item["color"],
+            )
             poolImgH += fs(25).getsize(cntStr)[1] + 20
         # 绘制五星物品统计
         poolImgH += 20
@@ -318,8 +329,12 @@ async def gnrtGachaInfo(rawData: dict) -> str:
     tDraw = ImageDraw.Draw(resultImg)
     for i, img in enumerate(imageList):
         resultImg.paste(img, (500 * i, 0), img)
-    tDraw.text((int(maxWidth - stampW), int(maxHeight - stampH)),
-               stampStr, font=fs(30), fill="#808080")
+    tDraw.text(
+        (int(maxWidth - stampW), int(maxHeight - stampH)),
+        stampStr,
+        font=fs(30),
+        fill="#808080",
+    )
     resImgB64 = img2Base64(resultImg)
     return resImgB64
 
@@ -353,14 +368,14 @@ async def gnrtGachaInfoHtml(rawData: dict) -> str:
         }
         probList = [
             f"{key}：{value} <span>[{percent(value, poolTotal)}]</span>"
-            for key, value in totalStar.items() if value > 0
+            for key, value in totalStar.items()
+            if value > 0
         ]
         probStat = "<br />".join(probList)
         # 五星物品历史记录
         star5Data = [*poolStat["char5"], *poolStat["weapon5"]]
         if star5Data:
-            star5List = [f"{item['name']}[{item['count']}]"
-                         for item in star5Data]
+            star5List = [f"{item['name']}[{item['count']}]" for item in star5Data]
             star5Stat = "五星历史记录：" + "·".join(star5List)
             star5Avg = average([item["count"] for item in star5Data])
             star5Stat += f"<br />五星平均抽数：{star5Avg:.2f}"

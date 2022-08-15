@@ -28,8 +28,9 @@ def getMeta(need: str):
         "400": "角色活动祈愿-2",
     }
     gachaTypeDict = {
-      key: value for key, value in gachaTypeDictFull.items()
-      if key not in gachaTypeDontIndex
+        key: value
+        for key, value in gachaTypeDictFull.items()
+        if key not in gachaTypeDontIndex
     }
     basicUrl = "https://hk4e-api.mihoyo.com/event/gacha_info/api/getGachaLog"
     basicUrlOversea = basicUrl.replace("hk4e-api", "hk4e-api-os")
