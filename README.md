@@ -21,7 +21,7 @@
 **安装方法**
 
 
-使用以下命令安装插件本体 ~~（插件暂未发布于 PyPI）~~：
+使用以下命令安装插件本体：
 
 
 ```bash
@@ -29,7 +29,7 @@
 git clone https://github.com/monsterxcn/nonebot-plugin-gachalogs.git
 cd nonebot_plugin_gachalogs
 cp -r nonebot_plugin_gachalogs /path/to/nonebot/plugins/
-cp -r resources/gachalogs /path/to/resources/
+cp -r data/gachalogs /path/to/nonebot/data/
 ```
 
 
@@ -37,6 +37,7 @@ cp -r resources/gachalogs /path/to/resources/
 
 
 ```bash
+# source venv/bin/activate
 python3 -m pip install matplotlib Pillow xlsxwriter
 ```
 
@@ -50,7 +51,7 @@ python3 -m pip install nonebot-plugin-gachalogs
 ```
 
 
-从 PyPI 安装后需要手动将 `resources/gachalogs` 文件夹内资源下载到服务端。
+从 PyPI 安装后需要手动将 `data/gachalogs` 文件夹内资源下载到服务端。
 
 
 </details>
@@ -87,7 +88,7 @@ python3 -m pip install nonebot-plugin-gachalogs
    
    附带 `-f` / `--force` 可要求强制获取最新祈愿记录，祈愿记录结果默认缓存 1 小时。
    
-   ![祈愿统计图](resources/readme/result.png)
+   ![祈愿统计图](data/readme/result.png)
    
  - `抽卡记录导出` / `ckjldc`
    
@@ -99,7 +100,7 @@ python3 -m pip install nonebot-plugin-gachalogs
    
    此功能需要配置腾讯云 COS 以实现私聊文件发送，创建的存储桶建议设为私有读写。
    
-   ![导出示意图](resources/readme/export.png)
+   ![导出示意图](data/readme/export.png)
    
  - `抽卡记录重置` / `ckjlcz`
    

@@ -2,8 +2,9 @@ from base64 import b64encode
 from copy import deepcopy
 from io import BytesIO
 from math import floor
+from pathlib import Path
 from time import localtime, strftime
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
@@ -14,8 +15,10 @@ from .__meta__ import getMeta
 
 localDir = getMeta("localDir")
 gachaTypeDict = getMeta("gachaTypeDict")
-pieFontPath = localDir + "LXGW-Bold-minipie.ttf"
-pilFontPath = localDir + "LXGW-{}.ttf"
+assert isinstance(localDir, Path)
+assert isinstance(gachaTypeDict, Dict)
+pieFontPath = localDir / "LXGW-Bold-minipie.ttf"
+pilFontPath = localDir / "LXGW-Bold.ttf"
 
 
 # 返回百分数字符串 / 根据百分数返回颜色
@@ -47,8 +50,8 @@ def percent(a: int, b: int, rt: str = "") -> str:
 
 
 # 设置 Pillow 绘制字体
-def fs(size: int, width: str = "Bold"):
-    return ImageFont.truetype(pilFontPath.format(width), size=size)
+def fs(size: int):
+    return ImageFont.truetype(str(pilFontPath), size=size)
 
 
 # 转换 Image 对象图片为 Base64 编码字符串
@@ -61,7 +64,7 @@ def img2Base64(pic: Image.Image) -> str:
 
 # 逐行绘制不超过宽度限制的彩色五星历史记录文字
 async def colorfulFive(
-    star5Data: list, fontSize: int, maxWidth: int, isWeapon: bool = False
+    star5Data: List, fontSize: int, maxWidth: int, isWeapon: bool = False
 ) -> Image.Image:
     ImageSize = (maxWidth, 400)
     coordX, coordY = 0, 0
@@ -110,7 +113,7 @@ async def colorfulFive(
 
 
 # 提取统计数据
-async def calcStat(gachaLogs: dict) -> dict:
+async def calcStat(gachaLogs: Dict) -> Dict:
     single = {
         "total": 0,
         "cntNot5": 0,
@@ -160,7 +163,7 @@ async def calcStat(gachaLogs: dict) -> dict:
 
 
 # 绘制单个饼图
-async def drawPie(stat: dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
+async def drawPie(stat: Dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
     partMap = [
         {"label": "三星武器", "color": "#73c0de", "total": stat["cntStar3"]},
         {"label": "四星武器", "color": "#91cc75", "total": stat["cntWeapon4"]},
@@ -210,7 +213,7 @@ async def drawPie(stat: dict, rt: str = "") -> Tuple[str, Image.Image, bool]:
 
 
 # 通过 PIL 和 matplotlib 绘制统计信息图片
-async def gnrtGachaInfo(rawData: dict) -> str:
+async def gnrtGachaInfo(rawData: Dict) -> str:
     wishStat = await calcStat(rawData["gachaLogs"])
     gotPool = [key for key in wishStat if wishStat[key]["total"] > 0]
     imageList = []
@@ -337,67 +340,3 @@ async def gnrtGachaInfo(rawData: dict) -> str:
     )
     resImgB64 = img2Base64(resultImg)
     return resImgB64
-
-
-# [unuse] 通过 Playwright 和 matplotlib 绘制统计信息图片
-async def gnrtGachaInfoHtml(rawData: dict) -> str:
-    wishStat = await calcStat(rawData["gachaLogs"])
-    htmlTplPath = f"{localDir}htmlTpl.html"
-    with open(htmlTplPath, "r", encoding="utf-8") as f:
-        htmlTpl = str(f.read())
-    infoHtml = """"""
-    gotPool = [key for key in wishStat if wishStat[key]["total"] > 0]
-    for gachaType in gotPool:
-        poolStat = wishStat[gachaType]
-        poolName = gachaTypeDict[gachaType]
-        poolTotal = poolStat["total"]
-        # 数据饼图与抽卡时间
-        chartB64, _, _ = await drawPie(poolStat, rt="base64")
-        startTime = poolStat["startTime"]
-        endTime = poolStat["endTime"]
-        timeStat = f"{startTime} ~ {endTime}"
-        # 未出五星抽数提示
-        notStar5 = poolStat["cntNot5"]
-        notStar5Str = f"，已累计 {notStar5} 抽未出 5 星"
-        totalStat = f"共计 {poolTotal} 抽{notStar5Str if notStar5 else ''}"
-        # 抽数统计与概率生成
-        totalStar = {
-            "五星": len(poolStat["weapon5"]) + len(poolStat["char5"]),
-            "四星": poolStat["cntWeapon4"] + poolStat["cntChar4"],
-            "三星": poolStat["cntStar3"],
-        }
-        probList = [
-            f"{key}：{value} <span>[{percent(value, poolTotal)}]</span>"
-            for key, value in totalStar.items()
-            if value > 0
-        ]
-        probStat = "<br />".join(probList)
-        # 五星物品历史记录
-        star5Data = [*poolStat["char5"], *poolStat["weapon5"]]
-        if star5Data:
-            star5List = [f"{item['name']}[{item['count']}]" for item in star5Data]
-            star5Stat = "五星历史记录：" + "·".join(star5List)
-            star5Avg = average([item["count"] for item in star5Data])
-            star5Stat += f"<br />五星平均抽数：{star5Avg:.2f}"
-        else:
-            star5Stat = "五星物品正在路上..."
-        # 替换模板
-        poolHtml = f"""        <div class="pool">
-            <div class="pool-name">{poolName}</div>
-            <div class="pool-chart">
-                <img src="data:image/png;base64,{chartB64}" />
-                <span>{timeStat}</span>
-            </div>
-            <div class="pool-comment">
-                <p>{totalStat}</p>
-                <p>{probStat}</p>
-                <p>{star5Stat}</p>
-            </div>
-        </div>\n"""
-        # print(poolHtml)
-        infoHtml += poolHtml
-    newHtmlPath = htmlTplPath.replace("htmlTpl", rawData["uid"])
-    with open(newHtmlPath, "w", encoding="utf-8") as f:
-        f.write(htmlTpl.replace("    {{info}}", infoHtml))
-    # TODO Plawright 截图
-    return newHtmlPath

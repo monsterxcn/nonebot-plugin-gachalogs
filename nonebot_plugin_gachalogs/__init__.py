@@ -9,10 +9,12 @@ from nonebot.typing import T_State
 try:
     from nonebot.adapters.onebot.v11 import (
         Bot,
-        GroupMessageEvent,
         Message,
-        MessageEvent,
         MessageSegment,
+    )
+    from nonebot.adapters.onebot.v11.event import (
+        GroupMessageEvent,
+        MessageEvent,
         PrivateMessageEvent,
     )
 except ImportError:

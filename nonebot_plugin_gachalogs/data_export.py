@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 from time import localtime, strftime, time
+from typing import Dict, List
 
 from xlsxwriter import Workbook
 
@@ -8,6 +10,9 @@ from .__meta__ import getMeta
 localDir = getMeta("localDir")
 gachaTypeDict = getMeta("gachaTypeDict")
 gachaTypeDictFull = getMeta("gachaTypeDictFull")
+assert isinstance(localDir, Path)
+assert isinstance(gachaTypeDict, Dict)
+assert isinstance(gachaTypeDictFull, Dict)
 
 
 # 生成物品 ID
@@ -19,7 +24,7 @@ def gnrtId():
 
 
 # 转换原始请求结果为 UIGF JSON
-async def transUIGF(uid: str, gachaLogs: dict) -> dict:
+async def transUIGF(uid: str, gachaLogs: Dict) -> Dict:
     UIGF = {
         "info": {
             "uid": uid,
@@ -51,9 +56,9 @@ async def transUIGF(uid: str, gachaLogs: dict) -> dict:
 
 
 # 转换原始请求结果为 UIGF XLSX
-async def transXLSX(uid: str, gachaLogs: dict, uigfList: list) -> str:
+async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> str:
     exportTime = strftime("%Y%m%d%H%M%S", localtime())
-    wbPath = f"{localDir}Wish-{uid}-{exportTime}.xlsx"
+    wbPath = localDir / f"Wish-{uid}-{exportTime}.xlsx"
     wb = Workbook(wbPath)
     # 重排顺序为 301 302 200 100（角色、武器、常驻、新手
     # sorted(gachaTypeDict.keys(), key=lambda item: item[0], reverse=True)
@@ -188,11 +193,11 @@ async def transXLSX(uid: str, gachaLogs: dict, uigfList: list) -> str:
     # 关闭工作簿
     wb.close()
     # 返回文件路径
-    return wbPath
+    return str(wbPath)
 
 
 # 导出抽卡数据
-async def exportGacha(rawData: dict, outFormat: str) -> dict:
+async def exportGacha(rawData: Dict, outFormat: str) -> Dict:
     rt = {"msg": "", "file": ""}
     # 无抽卡记录数据直接返回
     if not rawData.get("gachaLogs", ""):
@@ -215,7 +220,7 @@ async def exportGacha(rawData: dict, outFormat: str) -> dict:
         rt["file"] = xlsxPath
     elif outFormat == "uigf":
         exportTime = strftime("%Y%m%d%H%M%S", localtime())
-        uigfPath = f"{localDir}UIGF-{uid}-{exportTime}.json"
+        uigfPath = str(localDir / f"UIGF-{uid}-{exportTime}.json")
         with open(uigfPath, "w", encoding="utf-8") as f:
             json.dump(uigfData, f, ensure_ascii=False, indent=2)
         rt["msg"] = "抽卡记录导出 JSON(UIGF) 完成！"

@@ -1,15 +1,14 @@
-import os
+from typing import Dict, Union
 from nonebot import get_driver
+from pathlib import Path
 
 try:
-    resPath = get_driver().config.resources_dir
-    localDir = f"{resPath}{os.sep}gachalogs{os.sep}"
-    assert os.path.exists(localDir)
+    localDir = Path(get_driver().config.resources_dir) / "gachalogs"
+    assert localDir.exists()
 except (AssertionError, AttributeError):
-    resPath = os.path.dirname(os.path.abspath(__file__))
-    localDir = f"{resPath}{os.sep}gachalogs{os.sep}"
-    if not os.path.exists(localDir):
-        os.makedirs(localDir)
+    localDir = Path() / "data" / "gachalogs"
+    if not localDir.exists():
+        localDir.mkdir(parents=True, exist_ok=True)
 
 try:
     expireSec = get_driver().config.gacha_expire_sec
@@ -18,7 +17,7 @@ except (AssertionError, AttributeError):
     expireSec = 60 * 60
 
 
-def getMeta(need: str):
+def getMeta(need: str) -> Union[str, Dict, Path]:
     gachaTypeDontIndex = ["400"]
     gachaTypeDictFull = {
         "100": "新手祈愿",
@@ -45,7 +44,7 @@ def getMeta(need: str):
     return gachaMeta[need]
 
 
-def getCOSMeta() -> dict:
+def getCOSMeta() -> Dict:
     cfg = get_driver().config
     Name = cfg.cos_bucket_name if hasattr(cfg, "cos_bucket_name") else ""
     Region = cfg.cos_bucket_region if hasattr(cfg, "cos_bucket_region") else ""

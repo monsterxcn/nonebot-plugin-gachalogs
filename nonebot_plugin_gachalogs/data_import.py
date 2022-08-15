@@ -1,14 +1,17 @@
 import json
 import os
+from pathlib import Path
 from time import time
+from typing import Dict
 
 from .__meta__ import getMeta
 from .data_source import cacheData, mergeData
 
 localDir = getMeta("localDir")
+assert isinstance(localDir, Path)
 
 
-async def importUIGF(qq: str, uigfData: dict) -> dict:
+async def importUIGF(qq: str, uigfData: Dict) -> Dict:
     rawData = {
         "uid": uigfData["info"]["uid"],
         "time": uigfData["info"].get("export_timestamp", int(time())),

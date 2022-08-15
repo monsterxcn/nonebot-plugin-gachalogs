@@ -1,9 +1,11 @@
 import json
 import os
+from pathlib import Path
 import re
 import sys
 from asyncio import sleep as asleep
 from time import time
+from typing import Dict, List
 from urllib import parse
 
 from httpx import AsyncClient
@@ -16,6 +18,11 @@ expireSec = getMeta("expireSec")
 basicUrl = getMeta("basicUrl")
 basicUrlOversea = getMeta("basicUrlOversea")
 gachaTypeDict = getMeta("gachaTypeDict")
+assert isinstance(localDir, Path)
+assert isinstance(expireSec, int)
+assert isinstance(basicUrl, str)
+assert isinstance(basicUrlOversea, str)
+assert isinstance(gachaTypeDict, Dict)
 
 
 # 检查抽卡记录链接是否失效 [httpx]
@@ -72,9 +79,9 @@ async def checkLogUrl(logUrl: str) -> str:
 # 返回值：dict
 #   msg: "" / 错误信息
 #   data: 抽卡记录数据 / {"time": int}
-async def getCacheData(qq: str, readCache: bool = True) -> dict:
+async def getCacheData(qq: str, readCache: bool = True) -> Dict:
     cache = {"msg": "", "data": {}}
-    cacheFile = localDir + "cache-config.json"
+    cacheFile = localDir / "cache-config.json"
     # 本地无缓存配置文件时，创建缓存配置文件
     if not os.path.isfile(cacheFile):
         with open(cacheFile, "w", encoding="utf-8") as f:
@@ -122,7 +129,7 @@ def getGachaLogsApi(url: str, page: int, typeId: str, endId: str) -> str:
 
 # 获取指定类型抽卡记录 [getGachaLogsApi]
 # 返回值：list [{}, {}, ...]
-async def getGachaList(url: str, gachaTypeId: str) -> list:
+async def getGachaList(url: str, gachaTypeId: str) -> List:
     gachaList, endId, page = [], "0", 1
     for pageTryCnt in range(1, 9999):
         logger.debug(f"正在获取 {gachaTypeDict[gachaTypeId]} 第 {page} 页")
@@ -155,7 +162,7 @@ async def getGachaList(url: str, gachaTypeId: str) -> list:
 # 返回值：dict
 #   msg: "" / 错误信息
 #   data: 抽卡记录数据 / {"uid": "", ...}
-async def getRawData(logUrl: str, force: bool = False) -> dict:
+async def getRawData(logUrl: str, force: bool = False) -> Dict:
     raw = {"msg": "" if not force else "强制获取最新数据..", "data": {}}
     # 检查链接是否失效
     logUrlChecked = await checkLogUrl(logUrl)
@@ -180,7 +187,7 @@ async def getRawData(logUrl: str, force: bool = False) -> dict:
 
 
 # 缓存数据 [filewrite]
-async def cacheData(qq: str, rawData: dict) -> str:
+async def cacheData(qq: str, rawData: Dict) -> str:
     if "delete" in rawData.keys():
         cacheFile = rawData["delete"]
         uid = re.search(r"cache-(.*)\.json", cacheFile)
@@ -197,11 +204,11 @@ async def cacheData(qq: str, rawData: dict) -> str:
     else:
         uid = rawData["uid"]
         # 创建 UID 对应缓存文件
-        cacheFile = localDir + f"cache-{uid}.json"
+        cacheFile = localDir / f"cache-{uid}.json"
         with open(cacheFile, "w", encoding="utf-8") as f:
             json.dump(rawData, f, ensure_ascii=False, indent=2)
     # 更新用于 getCacheData 的缓存配置文件
-    cgfFile = localDir + "cache-config.json"
+    cgfFile = localDir / "cache-config.json"
     with open(cgfFile, "r", encoding="utf-8") as f:
         cacheConfig = json.load(f)
     if "delete" in rawData.keys():
@@ -217,7 +224,7 @@ async def cacheData(qq: str, rawData: dict) -> str:
 # 返回值：dict
 #   msg: 合并消息
 #   data: 合并数据
-async def mergeData(cache: dict, raw: dict, qq: str, fw: bool = True) -> dict:
+async def mergeData(cache: Dict, raw: Dict, qq: str, fw: bool = True) -> Dict:
     # 若无新增数据，则直接返回缓存数据
     if not raw["data"].get("gachaLogs", {}):
         cache["msg"] += raw["msg"]
@@ -278,8 +285,8 @@ async def mergeData(cache: dict, raw: dict, qq: str, fw: bool = True) -> dict:
 #   msg: "" / 合并消息 / 错误信息
 #   data: 抽卡记录数据 / 合并数据 / {"": "", ...}
 async def getGachaData(
-    qq: str, logUrl: str = "", cache: dict = {}, force: bool = False
-) -> dict:
+    qq: str, logUrl: str = "", cache: Dict = {}, force: bool = False
+) -> Dict:
     # 读取缓存
     cache = await getCacheData(qq) if not cache else cache
     now = int(time())
