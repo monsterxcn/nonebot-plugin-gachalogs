@@ -1,71 +1,83 @@
+# Modified from @sunfkny/genshin-gacha-export
+# https://github.com/sunfkny/genshin-gacha-export/blob/main/UIGF_converter.py
+# https://github.com/sunfkny/genshin-gacha-export/blob/main/writeXLSX.py
+
 import json
 from pathlib import Path
 from time import localtime, strftime, time
-from typing import Dict, List
+from typing import Dict, List, Literal
 
+from nonebot.log import logger
 from xlsxwriter import Workbook
 
-from .__meta__ import getMeta
-
-localDir = getMeta("localDir")
-gachaTypeDict = getMeta("gachaTypeDict")
-gachaTypeDictFull = getMeta("gachaTypeDictFull")
-assert isinstance(localDir, Path)
-assert isinstance(gachaTypeDict, Dict)
-assert isinstance(gachaTypeDictFull, Dict)
+from .__meta__ import GACHA_TYPE, GACHA_TYPE_FULL, LOCAL_DIR
+from .data_source import logsHelper
 
 
-# 生成物品 ID
 def gnrtId():
+    """生成物品 ID"""
     id = 1000000000000000000
     while True:
         id = id + 1
         yield str(id)
 
 
-# 转换原始请求结果为 UIGF JSON
 async def transUIGF(uid: str, gachaLogs: Dict) -> Dict:
-    UIGF = {
+    """
+    转换原始请求结果为 UIGF JSON
+
+    * ``param uid: str`` 抽卡记录所属 UID
+    * ``param gachaLogs: dict`` 原始请求结果
+    - ``return: Dict`` UIGF 格式数据
+    """
+    uigf = {
         "info": {
             "uid": uid,
             "lang": "zh-cn",
             "export_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
             "export_timestamp": int(time()),
-            "export_app": "nonebot-genshin-gacha-export",
-            "export_app_version": "v0.1.0",
+            "export_app": "nonebot-plugin-gachalogs",
+            "export_app_version": "v0.2.0",
             "uigf_version": "v2.2",
         },
         "list": [],
     }
-    # 写入数据
-    for gachaType in gachaTypeDict:
-        gachaLog = gachaLogs.get(gachaType, [])
+    # 转换数据
+    for banner in GACHA_TYPE:
+        gachaLog = gachaLogs.get(banner, [])
         gachaLog = sorted(gachaLog, key=lambda i: i["time"], reverse=False)
         for item in gachaLog:
-            item["uigf_gacha_type"] = gachaType
-        UIGF["list"].extend(gachaLog)
-    UIGF["list"] = sorted(UIGF["list"], key=lambda item: item["time"])
+            item["uigf_gacha_type"] = banner
+        uigf["list"].extend(gachaLog)
+    uigf["list"] = sorted(uigf["list"], key=lambda i: i["time"])
     # 缺失物品 ID 补充
     id = gnrtId()
-    for item in UIGF["list"]:
-        if item.get("id", "") == "":
+    for item in uigf["list"]:
+        if not item.get("id"):
             item["id"] = next(id)
-    UIGF["list"] = sorted(UIGF["list"], key=lambda item: item["id"])
+    uigf["list"] = sorted(uigf["list"], key=lambda i: i["id"])
     # 返回 UIGF JSON
-    return UIGF
+    return uigf
 
 
-# 转换原始请求结果为 UIGF XLSX
-async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> str:
+async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> Path:
+    """
+    转换原始请求结果为 UIGF XLSX
+
+    * ``param uid: str`` 抽卡记录所属 UID
+    * ``param gachaLogs: dict`` 原始请求结果
+    * ``param uigfList: list`` UIGF 格式数据，由 ``transUIGF()`` 生成
+    - ``return: str`` XLSX 文件路径
+    """
     exportTime = strftime("%Y%m%d%H%M%S", localtime())
-    wbPath = localDir / f"Wish-{uid}-{exportTime}.xlsx"
+    wbPath = LOCAL_DIR / f"Wish-{uid}-{exportTime}.xlsx"
     wb = Workbook(wbPath)
     # 重排顺序为 301 302 200 100（角色、武器、常驻、新手
-    # sorted(gachaTypeDict.keys(), key=lambda item: item[0], reverse=True)
-    gachaTypeList = ["301", "302", "200", "100"]
-    for gachaType in gachaTypeList:
-        # 新建页面和样式
-        worksheet = wb.add_worksheet(gachaTypeDict[gachaType])
+    writeOrder = sorted(GACHA_TYPE.keys(), key=lambda t: t[0], reverse=True)
+    for banner in writeOrder:
+        # 新建页面
+        worksheet = wb.add_worksheet(GACHA_TYPE[banner])
+        # 定义样式
         headerStyle = wb.add_format(
             {
                 "align": "left",
@@ -92,30 +104,24 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> str:
         worksheet.set_column("A:A", 22)
         worksheet.set_column("B:B", 14)
         worksheet.set_column("E:E", 14)
-        # 表头
+        # 写入表头
         header = ["时间", "名称", "物品类型", "星级", "祈愿类型", "总次数", "保底内"]
         worksheet.write_row(0, 0, header, headerStyle)
         worksheet.freeze_panes(1, 0)
-        # 从最旧的数据开始写入
+        # 写入记录，从最旧的数据开始
         counter = 0
         pityCounter = 0
-        gachaList = gachaLogs[gachaType]
+        gachaList = gachaLogs.get(banner, [])
         gachaList.reverse()
         for item in gachaList:
-            timeStr = item["time"]
-            itemName = item["name"]
-            itemType = item["item_type"]
-            rankType = int(item["rank_type"])
-            gachaType = item["gacha_type"]
-            gachaTypeName = gachaTypeDictFull.get(gachaType, "")
             counter = counter + 1
             pityCounter = pityCounter + 1
             content = [
-                timeStr,
-                itemName,
-                itemType,
-                rankType,
-                gachaTypeName,
+                item["time"],
+                item["name"],
+                item["item_type"],
+                int(item["rank_type"]),
+                GACHA_TYPE_FULL.get(item["gacha_type"], ""),
                 counter,
                 pityCounter,
             ]
@@ -123,30 +129,17 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> str:
             if content[3] == 5:
                 pityCounter = 0
         # 三星、四星、五星物品高亮
-        contentRow1st, contentCol1st = 1, 0
-        contentRowLast, contentColLast = len(gachaList), len(header) - 1
-        worksheet.conditional_format(
-            contentRow1st,
-            contentCol1st,
-            contentRowLast,
-            contentColLast,
-            {"type": "formula", "criteria": "=$D2=3", "format": star3Style},
-        )
-        worksheet.conditional_format(
-            contentRow1st,
-            contentCol1st,
-            contentRowLast,
-            contentColLast,
-            {"type": "formula", "criteria": "=$D2=4", "format": star4Style},
-        )
-        worksheet.conditional_format(
-            contentRow1st,
-            contentCol1st,
-            contentRowLast,
-            contentColLast,
-            {"type": "formula", "criteria": "=$D2=5", "format": star5Style},
-        )
-    # 原始数据表
+        row1st, rowLast = 1, len(gachaList)
+        col1st, colLast = 0, len(header) - 1
+        tmpRank = 3
+        for style in [star3Style, star4Style, star5Style]:
+            formula = {
+                "type": "formula",
+                "criteria": f"=$D2={tmpRank}",
+                "format": style,
+            }
+            worksheet.conditional_format(row1st, col1st, rowLast, colLast, formula)
+    # 额外新建原始数据页面
     worksheet = wb.add_worksheet("原始数据")
     rawHeader = [
         "count",
@@ -164,67 +157,56 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> str:
     worksheet.write_row(0, 0, rawHeader)
     allCounter = 0
     for item in uigfList:
-        count = item.get("count", "")
-        gachaType = item.get("gacha_type", "")
-        id = item.get("id", "")
-        itemId = item.get("item_id", "")
-        itemType = item.get("item_type", "")
-        lang = item.get("lang", "")
-        name = item.get("name", "")
-        rankType = item.get("rank_type", "")
-        timeStr = item.get("time", "")
-        uigfUid = item.get("uid", "")
-        uigfGachaType = item.get("uigf_gacha_type", "")
         rawContent = [
-            count,
-            gachaType,
-            id,
-            itemId,
-            itemType,
-            lang,
-            name,
-            rankType,
-            timeStr,
-            uigfUid,
-            uigfGachaType,
+            item.get("count", ""),
+            item.get("gacha_type", ""),
+            item.get("id", ""),
+            item.get("item_id", ""),
+            item.get("item_type", ""),
+            item.get("lang", ""),
+            item.get("name", ""),
+            item.get("rank_type", ""),
+            item.get("time", ""),
+            item.get("uid", ""),
+            item.get("uigf_gacha_type", ""),
         ]
         worksheet.write_row(allCounter + 1, 0, rawContent)
         allCounter += 1
     # 关闭工作簿
     wb.close()
     # 返回文件路径
-    return str(wbPath)
+    return wbPath
 
 
 # 导出抽卡数据
-async def exportGacha(rawData: Dict, outFormat: str) -> Dict:
-    rt = {"msg": "", "file": ""}
+async def gnrtGachaFile(config: Dict, outFormat: Literal["xlsx", "json"]) -> Dict:
+    """
+    导出抽卡数据
+
+    * ``param config: Dict`` 配置文件
+    * ``param outFormat: Literal["xlsx", "json"]`` 导出格式
+    * ``return: Dict`` 导出结果，出错时返回 ``{"error": "错误信息"}``
+    """
     # 无抽卡记录数据直接返回
-    if not rawData.get("gachaLogs", ""):
-        rt["msg"] = "没有抽卡记录可供导出哦！"
-        return rt
-    # 判断输出格式
-    if outFormat.lower() in ["j", "json", "u", "uigf"]:
-        outFormat = "uigf"
-    else:
-        # if outFormat.lower() in ["x", "xlsx", "excel"]:
-        outFormat = "xlsx"
-    uid = rawData["uid"]
-    gachaLogs = rawData["gachaLogs"]
+    if not config.get("logs"):
+        return {"error": "没有抽卡记录可供导出哦！"}
+    # 读取抽卡记录缓存
+    uid, gachaLogs = await logsHelper(config["logs"])
+    if not uid.isdigit():
+        return {"error": uid}
     # 转换原始数据为 UIGF 格式数据
     uigfData = await transUIGF(uid, gachaLogs)
     # 生成对应格式文件
-    if outFormat == "xlsx":
-        xlsxPath = await transXLSX(uid, gachaLogs, uigfData["list"])
-        rt["msg"] = "抽卡记录导出 Excel 完成！"
-        rt["file"] = xlsxPath
-    elif outFormat == "uigf":
-        exportTime = strftime("%Y%m%d%H%M%S", localtime())
-        uigfPath = str(localDir / f"UIGF-{uid}-{exportTime}.json")
-        with open(uigfPath, "w", encoding="utf-8") as f:
-            json.dump(uigfData, f, ensure_ascii=False, indent=2)
-        rt["msg"] = "抽卡记录导出 JSON(UIGF) 完成！"
-        rt["file"] = uigfPath
-    else:
-        rt["msg"] = "暂未支持的导出格式！"
-    return rt
+    try:
+        if outFormat == "xlsx":
+            xlsxPath = await transXLSX(uid, gachaLogs, uigfData["list"])
+            return {"msg": "导出抽卡记录 Excel 完成！", "path": xlsxPath}
+        elif outFormat == "json":
+            exportTime = strftime("%Y%m%d%H%M%S", localtime())
+            uigfPath = LOCAL_DIR / f"UIGF-{uid}-{exportTime}.json"
+            with open(uigfPath, "w", encoding="utf-8") as f:
+                json.dump(uigfData, f, ensure_ascii=False, indent=2)
+            return {"msg": "导出抽卡记录 JSON(UIGF) 完成！", "path": uigfPath}
+    except Exception as e:
+        logger.error(f"导出抽卡记录失败 {type(e)}\n{e}")
+        return {"error": f"因为 {type(e)} 导出失败了.."}

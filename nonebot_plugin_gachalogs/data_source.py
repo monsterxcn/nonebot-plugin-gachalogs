@@ -1,305 +1,548 @@
 import json
-import os
+import random
+import string
+import uuid
+from asyncio import sleep as asyncsleep
+from hashlib import md5
 from pathlib import Path
-import re
-import sys
-from asyncio import sleep as asleep
-from time import time
-from typing import Dict, List
+from re import search
+from time import localtime, strftime, time
+from typing import Dict, List, Literal, Tuple, Union
 from urllib import parse
 
 from httpx import AsyncClient
 from nonebot.log import logger
 
-from .__meta__ import getMeta
+from .__meta__ import (
+    AUTHKEY_API,
+    CLIENT_SALT,
+    CLIENT_TYPE,
+    CLIENT_VERSION,
+    EXPIRE_SEC,
+    GACHA_TYPE,
+    LOCAL_DIR,
+    POOL_API,
+    ROLE_API,
+    ROOT_OVERSEA_URL,
+    ROOT_URL,
+    TOKEN_API,
+)
 
-localDir = getMeta("localDir")
-expireSec = getMeta("expireSec")
-basicUrl = getMeta("basicUrl")
-basicUrlOversea = getMeta("basicUrlOversea")
-gachaTypeDict = getMeta("gachaTypeDict")
-assert isinstance(localDir, Path)
-assert isinstance(expireSec, int)
-assert isinstance(basicUrl, str)
-assert isinstance(basicUrlOversea, str)
-assert isinstance(gachaTypeDict, Dict)
+
+def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
+    """
+    输入内容格式化，可根据输入内容提取抽卡记录链接或米游社 Cookie
+
+    * ``param input: str`` 输入内容
+    * ``param find: Literal["url", "cookie"]`` 提取内容类型
+    - ``return: str`` 提取结果，格式为 ``{"url": "链接或空"}`` 或 ``{"login_ticket": "xx", "stoken": "xx", ...}``
+    """
+    if find == "cookie":
+        if not input:
+            return {}
+        cookieDict = {}
+        params = [
+            "account_id",
+            "cookie_token",
+            "login_ticket",
+            "login_uid",
+            "ltoken",
+            "ltuid",
+            "mid",
+            "stoken",
+            "stuid",
+        ]
+        for param in params:
+            match = search(rf"(^| ){param}=([^;]*)", input)
+            if match:
+                # 去除结尾分号、空格、引号
+                cookieDict[param] = match.group(2).rstrip("; '\"")
+        # account_id, login_uid, stuid, ltuid 同为米游社 ID
+        for param in ["account_id", "login_uid", "stuid", "ltuid"]:
+            if cookieDict.get(param):
+                for p in ["account_id", "login_uid", "stuid", "ltuid"]:
+                    cookieDict[p] = cookieDict[param]
+                break
+        # return "; ".join([f"{k}={v}" for k, v in cookieDict.items()])
+        return cookieDict
+    elif find == "url":
+        # https://ihateregex.io/expr/url
+        urlReg = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)"
+        matchUrl = search(urlReg, input.replace("&amp;", "&"))
+        if matchUrl:
+            # 找到链接后替换 Host
+            root, query = matchUrl[0].split("?")
+            urlRoot = (
+                ROOT_OVERSEA_URL
+                if any(x in root for x in ["webstatic-sea", "hk4e-api-os"])
+                else ROOT_URL
+            )
+            return {"url": urlRoot + "?" + query}
+        return {"url": ""}
 
 
-# 检查抽卡记录链接是否失效 [httpx]
-# 返回值：str
-#   "成功" / 错误信息
-async def checkAuthKey(url: str) -> str:
-    try:
-        async with AsyncClient() as client:
+async def configHelper(qq: str, data: Dict = {}) -> Dict:
+    """
+    配置缓存助手，既可根据 QQ 读取配置，也可根据数据写入/删除配置缓存
+
+    * ``param qq: str`` 目标 QQ
+    * ``param data: Dict = {}`` 配置数据，根据是否传入决定写入/删除或读取
+    - ``return: Dict`` 目标 QQ 的配置数据，成功写入/删除时返回 ``{}``，出错时返回 ``{"error": "错误信息"}``
+    """
+    cfgFile = LOCAL_DIR / "config.json"
+    # 尝试读取本地配置文件
+    if not cfgFile.exists():
+        cfgFile.write_text("{}", encoding="utf-8")
+        cfg = {}
+    else:
+        cfg = json.loads(cfgFile.read_text(encoding="utf-8"))
+    assert isinstance(cfg, Dict)
+    # 根据是否传入配置数据决定写入/删除或读取
+    if data:
+        delMode = bool(data.get("delete"))
+        modeStr = "删除" if delMode else "更新"
+        try:
+            if delMode:
+                cfg.pop(qq, None)
+            else:
+                cfg[qq] = data
+            cfgFile.write_text(
+                json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            logger.info(f"QQ{qq} 的配置已{modeStr}")
+            return {}
+        except Exception as e:
+            logger.error(f"QQ{qq} 的配置缓存{modeStr}失败：{type(e)}")
+            return {"error": f"QQ{qq} 的配置缓存{modeStr}失败！"}
+    else:
+        return cfg.get(qq, {"error": f"暂无 QQ{qq} 的抽卡记录配置！"})
+
+
+async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict]:
+    """
+    抽卡记录缓存助手，既可根据 ``file`` 路径读取抽卡记录，也可根据 ``data`` 数据写入/删除抽卡记录缓存
+
+    * ``param file: Union[Path, str]`` 抽卡记录缓存文件路径
+    * ``param data: Dict = {}`` 抽卡记录数据，根据是否传入决定写入/删除或读取
+    - ``return: Tuple[str, Dict]`` 抽卡记录所属 UID（出错时返回错误信息）、抽卡记录数据（成功写入/删除时返回 ``{}``）
+    """
+    uid = search(r"gachalogs-([0-9]{9}).json", str(file))
+    if not uid:
+        raise ValueError(f"记录所属 UID 不存在！{str(file)}")
+    uid, logsFile = uid.group(1), Path(file)
+    # 根据是否传入抽卡记录数据决定写入/删除或读取
+    if data:
+        delMode = bool(data.get("delete"))
+        modeStr = "删除" if delMode else "更新"
+        try:
+            if delMode:
+                logsFile.unlink(missing_ok=True)
+            else:
+                logsFile.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+            logger.info(f"UID{uid} 的抽卡记录已{modeStr}")
+            return uid, {}
+        except Exception as e:
+            logger.error(f"UID{uid} 的抽卡记录缓存{modeStr}失败：{type(e)}")
+            return f"UID{uid} 的抽卡记录缓存{modeStr}失败！", {}
+    elif logsFile.exists():
+        logs = json.loads(logsFile.read_text(encoding="utf-8"))
+        assert isinstance(logs, Dict)
+        return uid, logs
+    else:
+        raise ValueError(f"UID{uid} 的本地抽卡记录不存在！")
+
+
+async def queryMihoyo(
+    cookie: str, aType: Literal["获取令牌", "获取角色", "获取卡池", "生成密钥"], data: Dict = {}
+) -> Dict:
+    """
+    米哈游接口请求，支持获取 ``stoken`` 令牌、获取指定 ``cookie`` 名下原神游戏角色数据、查询最新祈愿活动 ``gacha_id`` 卡池数据、生成用于抽卡记录查询的 ``authkey`` 密钥
+
+    * ``param cookie: str`` 米哈游通行证 Cookie，获取令牌和获取卡池时可传入空
+    * ``param aType: Literal["获取令牌", "获取角色", "获取卡池", "生成密钥"]`` 请求类型
+    * ``param data: Dict = {}`` 请求数据，根据需要被赋值为 ``params`` ``content`` 等
+    - ``return: Dict`` 请求结果，出错时返回 ``{"error": "错误信息"}``
+    """
+    if aType == "获取卡池":
+        # 可能不需要每次都向米游社发起请求，此处将返回固定为常驻祈愿活动数据
+        return {"type": "200", "pool": "fecafa7b6560db5f3182222395d88aaa6aaac1bc"}
+    t = str(int(time()))
+    r = "".join(random.sample(string.ascii_lowercase + string.digits, 6))
+    m = md5(f"salt={CLIENT_SALT}&t={t}&r={r}".encode()).hexdigest()
+    headers = {
+        "cookie": cookie,
+        "ds": f"{t},{r},{m}",
+        "host": "api-takumi.mihoyo.com",
+        "referer": "https://app.mihoyo.com",
+        "user-agent": "okhttp/4.8.0",
+        "x-rpc-app_version": CLIENT_VERSION,
+        "x-rpc-channel": "mihoyo",
+        "x-rpc-client_type": CLIENT_TYPE,
+        "x-rpc-device_id": str(uuid.uuid3(uuid.NAMESPACE_URL, cookie)),
+        "x-rpc-device_model": "SM-977N",
+        "x-rpc-device_name": "Samsung SM-G977N",
+        "x-rpc-sys_version": "12",
+    }
+    if aType == "获取令牌":
+        headers.update(
+            {
+                "origin": "https://webstatic.mihoyo.com",
+                "referer": "https://webstatic.mihoyo.com/",
+                "user-agent": (
+                    # "Mozilla/5.0 (Linux; Android 10; MIX 2 Build/QKQ1.190825.002; wv) "
+                    # "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
+                    # f"Chrome/83.0.4103.101 Mobile Safari/537.36 miHoYoBBS/{CLIENT_VERSION}"
+                    "Mozilla/5.0 (Linux; Android 12; SM-G977N Build/SP1A.210812.016; wv) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0"
+                    f"Chrome/104.0.5112.69 Mobile Safari/537.36 miHoYoBBS/{CLIENT_VERSION}"
+                ),
+                "x-requested-with": "com.mihoyo.hyperion",
+            }
+        )
+    elif aType == "生成密钥":
+        headers["content-type"] = "application/json; charset=UTF-8"
+    async with AsyncClient() as client:
+        try:
+            if aType == "获取令牌":
+                res = await client.get(TOKEN_API, headers=headers, params=data)
+                rt = {"stoken": res.json()["data"]["list"][0]["token"]}
+            elif aType == "获取角色":
+                res = await client.get(ROLE_API, headers=headers)
+                rt = [
+                    char
+                    for char in res.json()["data"]["list"]
+                    if char["game_biz"] == "hk4e_cn"
+                ][0]
+            elif aType == "获取卡池":
+                res = await client.get(POOL_API, params={"ts": str(time())[:8]})
+                rt = {
+                    "type": "200",
+                    "pool": [
+                        p["gacha_id"]
+                        for p in res.json()["data"]["list"]
+                        if p["gacha_type"] == 200
+                    ][0],
+                }
+            elif aType == "生成密钥":
+                res = await client.post(
+                    AUTHKEY_API,
+                    headers=headers,
+                    content=json.dumps(data, ensure_ascii=False),
+                )
+                rt = {"authkey": res.json()["data"]["authkey"]}
+            else:
+                raise ValueError(f"未知的请求类型：{aType}")
+        except Exception as e:
+            logger.error(f"米游社 {aType} 请求失败：{type(e)}\n{e}")
+            return {"error": f"未能成功{aType}！"}
+    return rt
+
+
+async def checkAuthKey(url: str, skipFmt: bool = True) -> str:
+    """
+    抽卡记录链接验证，检查传入抽卡记录链接 `url` 是否有效（AuthKey 有效期 24h）
+
+    * ``param url: str`` 抽卡记录链接
+    * ``param skipFmt: bool = True`` 是否跳过格式检查，传入 ``False`` 将根据格式检查结果修正抽卡记录链接
+    - ``return: str`` 抽卡记录链接，出错时返回错误信息
+    """
+    logger.debug(f"验证抽卡记录链接 {url}")
+    if not skipFmt:
+        url = formatInput(url, find="url")["url"]
+        if not url:
+            return "未找到有效的抽卡记录链接！"
+    async with AsyncClient() as client:
+        try:
             res = await client.get(url)
             resJson = res.json()
-        # with open(f"{localDir}checkAuthKey-{int(time.time())}.json", "w",
-        #           encoding="utf-8") as f:
-        #     json.dump(resJson, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error("抽卡记录 API 请求解析出错：" + str(sys.exc_info()[0]) + "\n" + str(e))
-        return "检查链接时效性出错\n[{}]".format(str(sys.exc_info()[0]))
+            # checkFile = LOCAL_DIR / f"checkAuthKey-{int(time())}.json"
+            # with open(checkFile, "w", encoding="utf-8") as f:
+            #     resJson["url"] = url
+            #     json.dump(resJson, f, ensure_ascii=False, indent=2)
+        except json.decoder.JSONDecodeError:
+            return "链接返回无法解析！"
+        except Exception as e:
+            logger.error(f"抽卡记录链接验证出错 {type(e)}：{e}")
+            return f"[{type(e)}]链接验证出错！"
     if not resJson["data"]:
-        if resJson["message"] == "authkey timeout":
-            return "抽卡链接 AuthKey 已经失效，尝试返回缓存内容.."
-        return resJson["message"]
-    return "成功"
-
-
-# 检查及提取抽卡记录链接 [checkAuthKey]
-# 返回值：str
-#   抽卡记录链接 / 错误信息
-async def checkLogUrl(logUrl: str) -> str:
-    if not logUrl:
-        return "请至少给我一次抽卡记录链接！"
-    logUrl = logUrl.replace("&amp;", "&")
-    # 含有关键词视为正确链接
-    if "getGachaLog" in logUrl:
-        url = logUrl
-    else:
-        # 提取输入字符中的抽卡记录链接并转换
-        matchUrl = re.search("hk4e/event/.*#/log", logUrl)
-        if not matchUrl:
-            return "未找到有效的抽卡记录链接！"
-        url = f"https://webstatic.mihoyo.com/{matchUrl.group(0)}"
-        splitUrl = url.split("?")
-        if "webstatic-sea" in splitUrl[0] or "hk4e-api-os" in splitUrl[0]:
-            splitUrl[0] = basicUrlOversea
-        else:
-            splitUrl[0] = basicUrl
-        url = "?".join(splitUrl)
-    # 检查抽卡记录链接是否有效
-    keyStatus = await checkAuthKey(url)
-    if keyStatus != "成功":
-        return keyStatus
+        if resJson.get("message", "") == "authkey timeout":
+            return "链接 AuthKey 失效！"
+        if resJson.get("message", "") == "authkey error":
+            return "链接 AuthKey 错误！"
+        # https://webstatic.mihoyo.com/admin/mi18n/hk4e_cn/20190926_5d8c80193de82/20190926_5d8c80193de82-zh-cn.json
+        logger.error(
+            f"抽卡记录链接有问题 {resJson.get('retcode', 777)} {resJson.get('message', '')}"
+        )
+        return f"[{resJson.get('retcode', 777)}]链接有问题！"
     return url
 
 
-# 获取本地缓存抽卡记录 [fileread]
-# 返回值：dict
-#   msg: "" / 错误信息
-#   data: 抽卡记录数据 / {"time": int}
-async def getCacheData(qq: str, readCache: bool = True) -> Dict:
-    cache = {"msg": "", "data": {}}
-    cacheFile = localDir / "cache-config.json"
-    # 本地无缓存配置文件时，创建缓存配置文件
-    if not os.path.isfile(cacheFile):
-        with open(cacheFile, "w", encoding="utf-8") as f:
-            json.dump({}, f, ensure_ascii=False, indent=2)
-        cache["msg"] = "暂无本地抽卡记录！"
-        cache["data"]["time"] = int(time()) - expireSec - 1
-        return cache
-    with open(cacheFile, "r", encoding="utf-8") as f:
-        cacheConfig = json.load(f)
-    # 本地有缓存配置文件时，检查是否有用户缓存
-    if qq not in cacheConfig.keys():
-        cache["msg"] = "暂无本地抽卡记录！"
-        cache["data"]["time"] = int(time()) - expireSec - 1
-        return cache
-    # 本地有用户缓存时读取缓存的抽卡记录
-    if not readCache:
-        cache["msg"] = cacheConfig[qq]
-        return cache
-    with open(cacheConfig[qq], "r", encoding="utf-8") as f:
-        cachedRawData = json.load(f)
-    cache["data"] = cachedRawData
-    return cache
+async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
+    """
+    抽卡记录链接更新，可根据 `cookie` 初始化或更新抽卡记录链接
 
-
-# 获取指定类型抽卡记录单页链接
-# 返回值：str "https://..."
-def getGachaLogsApi(url: str, page: int, typeId: str, endId: str) -> str:
+    * ``param url: str`` 抽卡记录链接
+    * ``param cookie: str`` 含有 `stoken` 字段的米游社 Cookie
+    - ``return: Tuple[str, Dict]`` 抽卡记录链接、角色数据，出错时返回 ``"错误信息", {}``
+    """
+    # 提取 cookie 中有效字段字典
+    usefulCk = formatInput(cookie, find="cookie")
+    # Cookie 验证及补全
+    if not usefulCk:
+        return "无法自动更新链接！", {}
+    elif not usefulCk.get("account_id"):
+        return "Cookie 缺少米游社 ID 数据！", {}
+    elif not usefulCk.get("stoken"):
+        mysId, loginTicket = usefulCk.get("account_id"), usefulCk.get("login_ticket")
+        if not loginTicket:
+            return "Cookie 缺少 login_ticket 数据！", {}
+        data = {"login_ticket": loginTicket, "token_types": "3", "uid": mysId}
+        stokenRes = await queryMihoyo("", "获取令牌", data=data)
+        if not stokenRes.get("stoken"):
+            return "获取令牌失败！", {}
+        usefulCk["stoken"] = stokenRes["stoken"]
+    ckStr = "; ".join([f"{k}={v}" for k, v in usefulCk.items()])
+    # 获取 Cookie 名下角色数据
+    role = await queryMihoyo(ckStr, "获取角色")
+    if role.get("error"):
+        return role["error"], {}
+    # 更新抽卡记录链接中的 AuthKey
+    data = {
+        "auth_appid": "webview_gacha",
+        "game_biz": role["game_biz"],
+        "game_uid": role["game_uid"],
+        "region": role["region"],
+    }
+    authkeyRes = await queryMihoyo(ckStr, "生成密钥", data=data)
+    if not authkeyRes.get("authkey"):
+        return "生成密钥失败！", {}
+    # 更新抽卡记录链接中的卡池 ID
+    poolRes = await queryMihoyo("", "获取卡池")
+    if not poolRes.get("pool"):
+        poolRes = {
+            "type": "200",  # querys.get("init_type")
+            "pool": "fecafa7b6560db5f3182222395d88aaa6aaac1bc",  # querys.get("gacha_id")
+        }
+    # 提取传入 url 中请求参数字典
     parsed = parse.urlparse(url)
-    querys = parse.parse_qsl(str(parsed.query))
-    paramDict = dict(querys)
-    paramDict.update(
-        {
-            "size": "20",  # 限制单页最大获取总抽数 20
-            "gacha_type": typeId,
-            "page": str(page),
+    querys = dict(parse.parse_qsl(str(parsed.query)))
+    # 更新抽卡记录链接
+    if not querys:
+        querys = {
+            "authkey_ver": "1",
+            "sign_type": "2",
+            "auth_appid": "webview_gacha",
+            "init_type": poolRes["type"],
+            "gacha_id": poolRes["pool"],
+            "timestamp": str(int(time())),
             "lang": "zh-cn",
-            "end_id": endId,
+            "device_type": "mobile",
+            # "ext": {"loc":{"x":-672.817138671875,"y":122.54130554199219,"z":-87.4539794921875},"platform":"IOS"},  # "platform":"Android"
+            # "game_version": "CNRELiOS2.8.0_R9182063_S9401797_D9464149",  # CNRELAndroid2.8.0_R9182063_S9401797_D9464149
+            "plat_type": "android",  # ios
+            "region": role["region"],
+            "authkey": authkeyRes["authkey"],
+            "game_biz": role["game_biz"],
+            "gacha_type": "301",
+            "page": "1",
+            "size": "6",
+            "end_id": 0,
+        }
+    else:
+        querys.update(
+            {
+                "init_type": poolRes["type"],
+                "gacha_id": poolRes["pool"],
+                "timestamp": str(int(time())),
+                "region": role["region"],
+                "authkey": authkeyRes["authkey"],
+                "game_biz": role["game_biz"],
+            }
+        )
+    urlRoot = (
+        ROOT_OVERSEA_URL
+        if any(x in url for x in ["webstatic-sea", "hk4e-api-os"])
+        else ROOT_URL
+    )
+    url = urlRoot + "?" + parse.urlencode(querys)
+    return await checkAuthKey(url), role
+
+
+def getGachaLogsApi(logUrl: str, gachaType: str, page: int, endId: int) -> str:
+    """
+    指定类型抽卡记录接口生成
+
+    * ``param logUrl: str`` 抽卡记录链接
+    * ``param gachaType: str`` 祈愿类型（请求参数 ``gacha_type``）
+    * ``param page: int`` 页码（请求参数 ``page``）
+    * ``param endId: int`` 结束 ID（请求参数 ``end_id``）
+    - ``return: str`` 指定类型抽卡记录接口
+    """
+    parsed = parse.urlparse(logUrl)
+    querys = dict(parse.parse_qsl(str(parsed.query)))
+    querys.update(
+        {
+            "lang": "zh-cn",
+            "gacha_type": gachaType,
+            "page": str(page),
+            "size": "20",
+            "end_id": str(endId),
         }
     )
-    param = parse.urlencode(paramDict)
-    path = str(url).split("?")[0]
-    api = path + "?" + param
-    return api
+    return logUrl.split("?")[0] + "?" + parse.urlencode(querys)
 
 
-# 获取指定类型抽卡记录 [getGachaLogsApi]
-# 返回值：list [{}, {}, ...]
-async def getGachaList(url: str, gachaTypeId: str) -> List:
-    gachaList, endId, page = [], "0", 1
-    for pageTryCnt in range(1, 9999):
-        logger.debug(f"正在获取 {gachaTypeDict[gachaTypeId]} 第 {page} 页")
-        api = getGachaLogsApi(url, page, gachaTypeId, endId)
-        gachaListPage = []
-        async with AsyncClient() as client:
+async def getSingleTypeLogs(logUrl: str, gachaType: str) -> List:
+    """
+    指定类型抽卡记录获取
+
+    * ``param logUrl: str`` 抽卡记录链接
+    * ``param gachaType: str`` 祈愿类型，实际类型应为 ``Literal["100", "200", "301", "302"]``
+    * ``return: List`` 指定类型抽卡记录
+    """
+    logsList, endId, page = [], 0, 1
+    async with AsyncClient() as client:
+        while True:
+            logger.debug(f"正在获取 {GACHA_TYPE[gachaType]} 第 {page} 页")
+            api = getGachaLogsApi(logUrl, gachaType, page, endId)
             res = await client.get(api)
-            resJson = res.json()
-        # with open(f"{localDir}getGachaList-{gachaTypeId}-{page}.json", "w",
-        #           encoding="utf-8") as f:
-        #     json.dump(resJson, f, ensure_ascii=False, indent=2)
-        if resJson["data"]:
-            gachaListPage = resJson["data"].get("list", [])
-        elif resJson["message"] == "visit too frequently":
-            # 访问过于频繁，等待 5s
-            await asleep(5)
-            continue
-        if not gachaListPage:
-            break
-        for item in gachaListPage:
-            gachaList.append(item)
-        # 更新下一页用于生成链接的数据
-        endId = resJson["data"]["list"][-1]["id"]
-        page += 1
-        await asleep(1)
-    return gachaList
-
-
-# 获取全部类型抽卡记录 [checkLogUrl] [getGachaList]
-# 返回值：dict
-#   msg: "" / 错误信息
-#   data: 抽卡记录数据 / {"uid": "", ...}
-async def getRawData(logUrl: str, force: bool = False) -> Dict:
-    raw = {"msg": "" if not force else "强制获取最新数据..", "data": {}}
-    # 检查链接是否失效
-    logUrlChecked = await checkLogUrl(logUrl)
-    if "getGachaLog" not in logUrlChecked:
-        raw["msg"] += logUrlChecked
-        return raw
-    # 获取最新抽卡记录
-    uidGot = False
-    gachaData = {"uid": "", "time": "", "url": logUrlChecked, "gachaLogs": {}}
-    for gachaType in gachaTypeDict:
-        gachaList = await getGachaList(logUrlChecked, gachaType)
-        gachaData["gachaLogs"][gachaType] = gachaList
-        # 从记录中获取一次 UID
-        if gachaList and not uidGot:
-            gachaData["uid"] = gachaList[0]["uid"]
-            uidGot = True
-    gachaData["time"] = int(time())
-    raw["data"] = gachaData
-    if not uidGot:
-        raw["msg"] = "获取最新抽卡记录失败！"
-    return raw
-
-
-# 缓存数据 [filewrite]
-async def cacheData(qq: str, rawData: Dict) -> str:
-    if "delete" in rawData.keys():
-        cacheFile = rawData["delete"]
-        uid = re.search(r"cache-(.*)\.json", cacheFile)
-        if uid is not None:
-            uid = uid.group(1)
-        else:
-            return "失败！\n['uid' not found]"
-        if os.path.isfile(rawData["delete"]):
             try:
-                os.remove(rawData["delete"])
-            except Exception as e:
-                logger.error("抽卡记录缓存删除出错：" + str(sys.exc_info()[0]) + "\n" + str(e))
-                return "失败！\n[{}]".format(str(sys.exc_info()[0]))
-    else:
-        uid = rawData["uid"]
-        # 创建 UID 对应缓存文件
-        cacheFile = localDir / f"cache-{uid}.json"
-        with open(cacheFile, "w", encoding="utf-8") as f:
-            json.dump(rawData, f, ensure_ascii=False, indent=2)
-    # 更新用于 getCacheData 的缓存配置文件
-    cgfFile = localDir / "cache-config.json"
-    with open(cgfFile, "r", encoding="utf-8") as f:
-        cacheConfig = json.load(f)
-    if "delete" in rawData.keys():
-        cacheConfig.pop(qq)
-    else:
-        cacheConfig[qq] = cacheFile
-    with open(cgfFile, "w", encoding="utf-8") as f:
-        json.dump(cacheConfig, f, ensure_ascii=False, indent=2)
-    return "成功！"
-
-
-# 合并数据 [cacheData]
-# 返回值：dict
-#   msg: 合并消息
-#   data: 合并数据
-async def mergeData(cache: Dict, raw: Dict, qq: str, fw: bool = True) -> Dict:
-    # 若无新增数据，则直接返回缓存数据
-    if not raw["data"].get("gachaLogs", {}):
-        cache["msg"] += raw["msg"]
-        return cache
-    # 若无缓存数据，则直接返回新增数据
-    if not cache["data"].get("gachaLogs", {}):
-        raw["msg"] = cache["msg"] + raw["msg"]
-        if raw["data"].get("gachaLogs", {}):
-            await cacheData(qq, raw["data"])
-        return raw
-    # 既有缓存数据又有新增数据
-    locData = cache["data"]
-    newData = raw["data"]
-    # 检查 UID 是否为同一账号
-    if locData["uid"] != newData["uid"]:
-        warnMsg = "缓存与新增数据 UID 不同，合并记录中断！"
-        cache["msg"] += "\n".join([raw["msg"], warnMsg])
-        return cache
-    # 执行合并
-    msgList = []
-    merged = {"msg": "", "data": {}}
-    for gachaType in gachaTypeDict:
-        logsLoc = locData["gachaLogs"][gachaType]
-        logsNew = newData["gachaLogs"][gachaType]
-        # 新增数据与缓存数据不同时合并
-        if logsNew != logsLoc:
-            tempList = []
-            itemsGot = [[got["time"], got["name"]] for got in logsLoc]
-            for i in range(len(logsNew)):
-                item = [logsNew[i]["time"], logsNew[i]["name"]]
-                if item not in itemsGot:
-                    tempList.insert(0, logsNew[i])
+                resJson = res.json()
+                if resJson.get("message") == "visit too frequently":
+                    logger.info("访问过于频繁，等待 3 秒后重试")
+                    await asyncsleep(3)
+                elif resJson.get("data", {}).get("list", []):
+                    # 成功解析记录数据，更新请求参数
+                    logsList.extend(resJson["data"]["list"])
+                    endId = resJson["data"]["list"][-1]["id"]
+                    page += 1
+                    await asyncsleep(0.6)
                 else:
-                    pass
-            for item in tempList:
-                locData["gachaLogs"][gachaType].insert(0, item)
-            if tempList:
-                s = f"新增 {len(tempList)} 条{gachaTypeDict[gachaType]}记录.."
-                msgList.append(s)
-        else:
-            pass
-    # 处理附加信息
-    locData["uid"] = newData["uid"]
-    locData["time"] = newData["time"]
-    locData["url"] = newData["url"]
-    # 缓存合并数据并生成结果
-    if fw:
-        await cacheData(qq, locData)
-    merged["data"] = locData
-    merged["msg"] = "\n".join(msgList)
-    if cache["msg"] or raw["msg"]:
-        merged["msg"] = cache["msg"] + raw["msg"] + "\n" + merged["msg"]
-    return merged
+                    # 未解析到记录数据，跳出循环
+                    break
+            except json.decoder.JSONDecodeError:
+                logger.error(f"{GACHA_TYPE[gachaType]} 第 {page} 页解析失败！")
+                await asyncsleep(2)
+                continue
+    return logsList
 
 
-# 获取抽卡记录入口 [getCacheData] [getRawData] [mergeData]
-# 返回值：dict
-#   msg: "" / 合并消息 / 错误信息
-#   data: 抽卡记录数据 / 合并数据 / {"": "", ...}
-async def getGachaData(
-    qq: str, logUrl: str = "", cache: Dict = {}, force: bool = False
-) -> Dict:
-    # 读取缓存
-    cache = await getCacheData(qq) if not cache else cache
-    now = int(time())
-    # 缓存未过期且未要求强制刷新，返回缓存数据
-    if now - cache["data"]["time"] < expireSec and not force:
-        return cache
-    if force and not logUrl:
-        cache["msg"] += "（强制刷新不可用！"
-        return cache
-    # 无链接且要求强制刷新，返回缓存数据
-    logUrl = logUrl if logUrl else cache["data"].get("url", "")
-    # 刷新数据
-    raw = await getRawData(logUrl, force=force)
+async def getAllTypeLogs(logUrl: str) -> Dict:
+    """
+    全部抽卡记录获取，可根据输入的抽卡记录链接获取 6 个月内全部抽卡记录
+
+    * ``param logUrl: str`` 抽卡记录链接
+    * ``return: Dict`` 全部抽卡记录，格式为``{"msg": "uid 或错误信息", "logs": {}]``
+    """
+    start, uidGot, newLogs = time(), "", {}
+    # 获取最新抽卡记录
+    for banner in GACHA_TYPE:
+        remoteLogs = await getSingleTypeLogs(logUrl, banner)
+        if remoteLogs:
+            newLogs[banner] = remoteLogs
+            if not uidGot:
+                # 从记录中获取一次 UID
+                uidGot = newLogs[banner][0]["uid"]
+    msg = str(uidGot) if uidGot else "获取最新抽卡记录失败！"
+    logger.info(
+        "刷新 UID{} 的抽卡记录耗时 {}s".format(
+            (uidGot if uidGot else "未知"), round(time() - start, 3)  # type: ignore
+        )
+    )
+    return {"msg": msg, "logs": newLogs}
+
+
+async def mergeLogs(locLogs: Dict, newLogs: Dict, config: Dict, qq: str) -> Dict:
+    """
+    本地记录数据与新增记录数据合并
+
+    * ``param locLogs: Dict`` 本地记录数据
+    * ``param newLogs: Dict`` 新增记录数据
+    * ``param config: Dict`` 配置文件
+    * ``param qq: str`` 目标 QQ
+    - ``return: Dict`` 合并后的记录数据，格式为``{"uid": "123456789", "msg": "文字消息", "logs": {}]``
+    """
+    msgList, logs = [], {}  # 消息列表、待写入记录
+    for banner in GACHA_TYPE:
+        locItems, newItems = locLogs.get(banner, []), newLogs.get(banner, [])
+        # 本地记录同步至待写入记录
+        if locItems:
+            logs[banner] = locItems
+        # 本地记录与最新记录相同，跳过
+        if locItems == newItems:
+            continue
+        # UID 不同，立即单独展示最新记录
+        if len(locItems) and len(newItems) and locItems[0]["uid"] != newItems[0]["uid"]:
+            logger.info(
+                f"{GACHA_TYPE[banner]}({banner}) 中发现 UID 不同（{locItems[0]['uid']}!={newItems[0]['uid']}），跳过合并"
+            )
+            return {
+                "uid": newItems[0]["uid"],
+                "msg": "新增与缓存数据 UID 不一致\n跳过合并，单独展示新增记录..",
+                "logs": newLogs,
+            }
+        # 本地记录与最新记录对比合并
+        tempList, locItemsSimp = [], [[i["time"], i["name"]] for i in locItems]
+        for i in range(len(newItems)):
+            newItem = [newItems[i]["time"], newItems[i]["name"]]
+            if newItem not in locItemsSimp:
+                # 新增记录暂存
+                tempList.append(newItems[i])
+        if len(tempList):
+            # 新增记录同步至待写入记录，保证新增数据在最前
+            msgList.append(f"新增 {len(tempList)} 条{GACHA_TYPE[banner]}记录..")
+            tempList.extend(locItems)
+            logs[banner] = tempList
+    # 无记录跳过后续缓存更改
+    if not logs:
+        return {"msg": "未发现任何记录.."}
+    # 保存合并后的记录数据
+    uid = logs[list(logs.keys())[0]][0]["uid"]
+    cache = LOCAL_DIR / f"gachalogs-{uid}.json"
+    config.update(
+        {
+            # "url": initUrl,
+            # "cookie": args,
+            "logs": str(cache),
+            "time": int(time()),
+            # "game_biz": role["game_biz"],
+            "game_uid": uid,
+            # "region": role["region"],
+        }
+    )
+    res, _ = await logsHelper(cache, logs)
+    if not res.isdigit():
+        msgList.append(res)
+    res = await configHelper(qq, config)
+    if res.get("error"):
+        msgList.append(res["error"])
+    return {"uid": uid, "msg": "\n".join(msgList), "logs": logs}
+
+
+async def getFullGachaLogs(config: Dict, qq: str, force: bool) -> Dict:
+    """
+    抽卡记录数据获取入口，可根据配置获取最新完整抽卡记录
+
+    * ``param config: Dict`` 配置数据
+    * ``param qq: str`` 目标 QQ
+    * ``param force: bool`` 是否强制更新抽卡记录
+    - ``return: Dict`` 抽卡记录数据，格式为``{"uid": "123456789", "msg": "文字消息", "logs": {}]``
+    """
+    # 读取抽卡记录缓存
+    uid, locLogs = await logsHelper(config["logs"]) if config["logs"] else ("无记录", {})
+    # msg = uid if not uid.isdigit() else ""
+    if (not config["url"]) or (  # 缺少有效链接
+        (not force) and (int(time()) - config["time"] < EXPIRE_SEC)  # 有缓存、未要求强制更新
+    ):
+        timeStr = strftime("%m-%d %H:%M", localtime(config["time"]))
+        timeTip = f"这是 {timeStr} 创建的缓存.." if config["time"] else "暂无本地记录！"
+        logger.info(f"返回 QQ{qq} 于 {timeStr} 生成的抽卡记录缓存")
+        return {"uid": uid, "msg": timeTip, "logs": locLogs}
+    # 获取最新抽卡记录
+    newLogsRes = await getAllTypeLogs(config["url"])
+    if not str(newLogsRes["msg"]).isdigit():
+        return {"msg": newLogsRes["msg"]}
     # 合并数据
-    fullData = await mergeData(cache, raw, qq)
-    return fullData
+    return await mergeLogs(locLogs, newLogsRes["logs"], config, qq)
