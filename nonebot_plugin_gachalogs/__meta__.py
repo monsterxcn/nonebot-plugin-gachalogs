@@ -51,12 +51,6 @@ if not PIE_FONT.exists():
             for chunk in r.iter_bytes():
                 f.write(chunk)
 
-# # 腾讯云 COS 配置
-# COS_NAME = str(cfg.cos_bucket_name) if hasattr(cfg, "cos_bucket_name") else ""
-# COS_REGION = str(cfg.cos_bucket_region) if hasattr(cfg, "cos_bucket_region") else ""
-# COS_SECRET_ID = str(cfg.cos_secret_id) if hasattr(cfg, "cos_secret_id") else ""
-# COS_SECRET_KEY = str(cfg.cos_secret_key) if hasattr(cfg, "cos_secret_key") else ""
-
 # 抽卡链接地址
 ROOT_URL = "https://hk4e-api.mihoyo.com/event/gacha_info/api/getGachaLog"
 ROOT_OVERSEA_URL = ROOT_URL.replace("hk4e-api", "hk4e-api-os")

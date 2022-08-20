@@ -39,32 +39,33 @@ async def mainInit(bot: Bot, event: MessageEvent, state: T_State):
     ).split(" ")
     args = [arg.strip() for arg in args if ("[CQ:" not in arg) and arg]  # 阻止 CQ 码入参
     state["force"] = any(arg in ["-f", "--force", "刷新"] for arg in args)
-    logger.debug(f"QQ{qq} {'' if state['force'] else 'dont '}need flash\nargs: {args}")
-    # 检查当前消息是否安全
+    logger.debug(f"QQ{qq} {'' if state['force'] else '未'}要求刷新\n触发传入参数：{args}")
+    # 检查当前消息来源是否安全
     unsafe = isinstance(event, GroupMessageEvent) and (event.group_id not in SAFE_GROUP)  # type: ignore
     # 读取配置数据
     cfg = await configHelper(qq)
     if cfg.get("error"):
-        # 无缓存，等待下一步输入
-        if any(
-            s in arg for arg in args for s in ["https://", "stoken", "login_ticket"]
-        ):
+        if any(s in " ".join(args) for s in ["https://", "stoken", "login_ticket"]):
+            # 无缓存、触发时可能存在有效输入，跳过下一步输入
             state["args"] = " ".join(args)
         elif unsafe:
+            # 无缓存、触发时无输入、来源不安全，结束响应
             await mainMatcher.finish("请在私聊中重试此命令添加抽卡记录链接或米游社 Cookie！")
         elif args:
+            # 无缓存、触发时可能存在无效输入、来源安全，等待下一步输入
             state["prompt"] = "参数无效，请输入抽卡记录链接或米游社 Cookie："
         else:
+            # 无缓存、触发时无输入、来源安全，等待下一步输入
             state["prompt"] = cfg["error"] + "请输入抽卡记录链接或米游社 Cookie："
     else:
         renewUrl, _ = await updateLogsUrl(cfg["url"], cfg["cookie"])
-        if "https://" not in renewUrl:
-            # 有缓存，自动更新链接失败，等待下一步输入
+        if not renewUrl.startswith("https://"):
+            # 有缓存、自动更新链接失败，等待下一步输入
             cfg["url"] = ""
             state["prompt"] = renewUrl + "请重新输入链接或 Cookie："
         else:
-            # 有缓存，自动更新链接成功，跳过下一步输入
-            state["args"] = renewUrl
+            # 有缓存、自动更新链接成功，跳过下一步输入
+            cfg["url"] = state["args"] = renewUrl
             state["argsAuto"] = True
         state["config"] = cfg
 
@@ -73,68 +74,71 @@ async def mainInit(bot: Bot, event: MessageEvent, state: T_State):
 async def mainGot(bot: Bot, event: MessageEvent, state: T_State):
     qq = str(event.get_user_id())
     isCached = isinstance(state.get("config"), Dict)
-    args = (
+    args = (  # got 获取的参数应为 Message 类型，将 str 类型视为触发时传入参数
         str(state["args"])
         if isinstance(state.get("args"), str)
         else str(event.get_plaintext()).strip()
     )
-    logger.debug(f"QQ{qq} [{'cached' if isCached else 'not cached'}] got args: {args}")
-    # 根据输入准备新增数据
+    cfg = state.get(
+        "config",
+        {
+            "url": "",
+            "cookie": "",
+            "logs": "",
+            "time": 0,
+            "game_biz": "hk4e_cn",
+            "game_uid": "",
+            "region": "",
+        },
+    )
+    logger.debug(f"{'已' if isCached else '无'}配置 QQ{qq} got 传入参数：{args}\n初始化配置数据：{cfg}")
+    # 根据输入更新配置数据，configHelper 将判断是否写入新的配置
     if "https://" in args:
-        logger.debug(
-            f"QQ{qq} {'auto ' if state.get('argsAuto', False) else ''}input url: {args}"
-        )
-        # 输入链接（包含 有缓存，自动更新链接成功 的情况）
+        # 输入链接
         if not state.get("argsAuto", False):
             # 非自动更新的链接需要检验
             urlState = await checkAuthKey(args, skipFmt=False)
-            if "https://" in urlState:
-                args = urlState
+            if urlState.startswith("https://"):
+                cfg["url"] = urlState
             elif isCached:
-                # 有缓存、自动更新链接失败、输入链接验证失败，删除已经过期的抽卡记录链接缓存
-                state["config"]["url"] = ""
-                _ = await configHelper(qq, state["config"])
+                # 有缓存、自动更新链接失败、输入链接验证失败，重置缓存的抽卡记录链接
+                cfg["url"], cfg["force"] = "", True
             else:
                 await mainMatcher.finish(urlState, at_sender=True)
-        state["config"] = {
-            "url": args,
-            "cookie": state.get("config", {}).get("cookie", ""),
-            "logs": state.get("config", {}).get("logs", ""),
-            "time": state.get("config", {}).get("time", 0),
-            "game_biz": state.get("config", {}).get("game_biz", ""),
-            "game_uid": state.get("config", {}).get("game_uid", ""),
-            "region": state.get("config", {}).get("region", ""),
-        }
-        logger.debug(f"QQ{qq} new config by url:\n{str(state['config'])}")
+        cfg = await configHelper(qq, cfg)
+        logger.debug(f"QQ{qq} 由 URL 生成的配置：\n{cfg}")
     elif any(x in args for x in ["stoken", "login_ticket"]):
         # 输入 Cookie
-        initUrl, role = await updateLogsUrl("", args)
-        if "https://" not in initUrl:
-            if isCached:
-                # 有缓存、自动更新链接失败、输入 Cookie 验证失败，删除已经过期的抽卡记录链接缓存
-                state["config"]["url"] = ""
-                _ = await configHelper(qq, state["config"])
-            else:
-                await mainMatcher.finish(initUrl, at_sender=True)
-        state["config"] = {
-            "url": initUrl,
-            "cookie": args,
-            "logs": state.get("config", {}).get("logs", ""),
-            "time": state.get("config", {}).get("time", 0),
-            "game_biz": role["game_biz"],
-            "game_uid": role["game_uid"],
-            "region": role["region"],
-        }
-        logger.debug(f"QQ{qq} new config by cookie:\n{str(state['config'])}")
+        initUrl, initData = await updateLogsUrl(str(cfg["url"]), args)
+        if initData:
+            # 获取到初始化数据一定是有效 Cookie，但角色数据可能由于网络原因为空
+            cfg["cookie"] = initData["cookie"]
+            if initData.get("role"):
+                cfg.update(
+                    {
+                        "game_biz": initData["role"]["game_biz"],
+                        "game_uid": initData["role"]["game_uid"],
+                        "region": initData["role"]["region"],
+                    }
+                )
+        if initUrl.startswith("https://"):
+            cfg["url"] = initUrl
+        elif isCached:
+            # 有缓存、自动更新链接失败、输入 Cookie 验证失败，重置缓存的抽卡记录链接
+            cfg["url"], cfg["force"] = "", True
+        else:
+            await mainMatcher.finish(initUrl, at_sender=True)
+        cfg = await configHelper(qq, cfg)
+        logger.debug(f"QQ{qq} 由 Cookie 生成的配置：\n{cfg}")
     elif isCached:
         # 输入无效，有缓存
-        state["config"]["url"] = ""
-        _ = await configHelper(qq, state["config"])
+        cfg["url"], cfg["force"] = "", True
+        cfg = await configHelper(qq, cfg)
     else:
         # 输入无效，无缓存
         await mainMatcher.finish("无法提取有效的链接或 Cookie。", at_sender=True)
-    # 常规流程：获取数据、生成图片、发送消息
-    data = await getFullGachaLogs(state["config"], qq, state["force"])
+    # 获取数据、生成图片、发送消息，至此只有新增数据才会更新配置数据、记录数据
+    data = await getFullGachaLogs(cfg, qq, state["force"])
     if data.get("msg"):
         await mainMatcher.send(data["msg"], at_sender=True)
     if not data.get("logs", {}):
@@ -212,8 +216,9 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
 @dMatcher.handle()
 async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
     # 提取目标 QQ 号、确认情况
-    op, user, comfirm = str(event.get_user_id()), "", False
+    op, user, rmrf, comfirm = str(event.get_user_id()), "", "抽卡记录", False
     comfirmStrList = ["确认", "强制", "force", "-f", "-y"]
+    deleteAllList = ["全部", "所有", "配置", "all", "-a", "config", "-c"]
     for msgSeg in event.message:
         if msgSeg.type == "at":
             user = msgSeg.data["qq"]
@@ -223,6 +228,10 @@ async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
             if any(x in maybeUser for x in comfirmStrList):
                 comfirm = True
                 for x in comfirmStrList:
+                    maybeUser = maybeUser.replace(x, "")
+            if any(x in maybeUser for x in deleteAllList):
+                rmrf = "全部配置"
+                for x in deleteAllList:
                     maybeUser = maybeUser.replace(x, "")
             if maybeUser.strip().isdigit():
                 user = maybeUser
@@ -234,23 +243,27 @@ async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
     cfg = await configHelper(user)
     if cfg.get("error"):
         await dMatcher.finish(cfg["error"], at_sender=True)
-    elif not cfg.get("logs"):
-        await dMatcher.finish(f"还没有 QQ{user} 的记录哦！", at_sender=True)
     # 检查权限及确认情况
     if (op != user) and (op not in bot.config.superusers):
-        await dMatcher.finish(f"你没有权限删除 QQ{user} 的抽卡记录！")
+        await dMatcher.finish(f"你没有权限删除 QQ{user} 的{rmrf}！")
     if not comfirm:
         await dMatcher.finish(
-            f"将要删除用户 {user} 的抽卡记录，确认无误请在刚刚的命令后附带「确认/强制/force/-f」之一重试！"
+            f"将要删除用户 {user} 的{rmrf}，确认无误请在刚刚的命令后附带「确认/强制/force/-f」之一重试！"
         )
     # 删除记录数据
-    delUid, _ = await logsHelper(cfg["logs"], {"delete": True})
-    if not delUid.isdigit():
-        await dMatcher.finish(delUid, at_sender=True)
+    if cfg.get("logs"):
+        delUid, _ = await logsHelper(cfg["logs"], {"delete": True})
+        if not delUid.isdigit():
+            await dMatcher.finish(delUid, at_sender=True)
+        delTips = f"QQ{user}-UID{delUid}"
+    elif rmrf == "抽卡记录":
+        await dMatcher.finish(f"还没有 QQ{user} 的记录哦！", at_sender=True)
+    else:
+        delTips = f"QQ{user}"
     # 更新配置数据
-    cfg["logs"] = ""
+    cfg.update({"logs": "", "time": 0, "game_uid": "", "region": "", "delete": rmrf})
     updateRes = await configHelper(user, cfg)
     if not updateRes:
-        await dMatcher.finish(f"删除了 QQ{user}-UID{delUid} 的抽卡记录缓存！", at_sender=True)
+        await dMatcher.finish(f"删除了 {delTips} 的{rmrf}缓存！", at_sender=True)
     else:
         await dMatcher.finish(updateRes["error"], at_sender=True)

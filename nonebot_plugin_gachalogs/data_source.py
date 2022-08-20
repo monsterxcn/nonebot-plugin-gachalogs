@@ -35,7 +35,7 @@ def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
 
     * ``param input: str`` 输入内容
     * ``param find: Literal["url", "cookie"]`` 提取内容类型
-    - ``return: str`` 提取结果，格式为 ``{"url": "链接或空"}`` 或 ``{"login_ticket": "xx", "stoken": "xx", ...}``
+    - ``return: str`` 提取结果，格式为 ``{"url": "链接"}`` 或 ``{"login_ticket": "xx", "stoken": "xx", ...}``，出错时返回 ``{}``
     """
     if find == "cookie":
         if not input:
@@ -66,7 +66,7 @@ def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
         # return "; ".join([f"{k}={v}" for k, v in cookieDict.items()])
         return cookieDict
     elif find == "url":
-        # https://ihateregex.io/expr/url
+        # ref: https://ihateregex.io/expr/url
         urlReg = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)"
         matchUrl = search(urlReg, input.replace("&amp;", "&"))
         if matchUrl:
@@ -78,7 +78,7 @@ def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
                 else ROOT_URL
             )
             return {"url": urlRoot + "?" + query}
-        return {"url": ""}
+        return {}
 
 
 async def configHelper(qq: str, data: Dict = {}) -> Dict:
@@ -86,8 +86,8 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
     配置缓存助手，既可根据 QQ 读取配置，也可根据数据写入/删除配置缓存
 
     * ``param qq: str`` 目标 QQ
-    * ``param data: Dict = {}`` 配置数据，根据是否传入决定写入/删除或读取
-    - ``return: Dict`` 目标 QQ 的配置数据，成功写入/删除时返回 ``{}``，出错时返回 ``{"error": "错误信息"}``
+    * ``param data: Dict = {}`` 配置数据，根据是否传入决定更新或读取，只有配置中有链接、Cookie 或抽卡记录缓存 或 配置中包含 force/delete 参数时才写入
+    - ``return: Dict`` 目标 QQ 的配置数据，删除时返回 ``{}``，出错时返回 ``{"error": "错误信息"}``
     """
     cfgFile = LOCAL_DIR / "config.json"
     # 尝试读取本地配置文件
@@ -99,18 +99,32 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
     assert isinstance(cfg, Dict)
     # 根据是否传入配置数据决定写入/删除或读取
     if data:
-        delMode = bool(data.get("delete"))
-        modeStr = "删除" if delMode else "更新"
+        # 配置中有链接、Cookie 或抽卡记录缓存 或 配置中包含 force/delete 参数时视为有效输入
+        if data.get("delete"):
+            validInput, delMode = True, data["delete"]
+            modeStr = "配置已删除" if delMode == "全部配置" else "记录已删除"
+            data.pop("delete")
+        elif data.get("force"):
+            validInput = bool(data["force"])
+            delMode, modeStr = "", ("已更新" if validInput else "未更新")
+            data.pop("force")
+        else:
+            validInput = bool(data.get("url") or data.get("cookie") or data.get("logs"))
+            delMode, modeStr = "", ("已更新" if validInput else "未更新")
         try:
-            if delMode:
-                cfg.pop(qq, None)
+            if validInput:
+                if delMode == "全部配置":
+                    cfg.pop(qq)
+                else:
+                    cfg[qq] = data
+                cfgFile.write_text(
+                    json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             else:
-                cfg[qq] = data
-            cfgFile.write_text(
-                json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            logger.info(f"QQ{qq} 的配置已{modeStr}")
-            return {}
+                cfg[qq] = {}
+                logger.info(f"QQ{qq} 的配置写入被跳过")
+            logger.info(f"QQ{qq} 的配置{modeStr}\n{'{}' if delMode else cfg[qq]}")
+            return {} if delMode else cfg[qq]
         except Exception as e:
             logger.error(f"QQ{qq} 的配置缓存{modeStr}失败：{type(e)}")
             return {"error": f"QQ{qq} 的配置缓存{modeStr}失败！"}
@@ -124,7 +138,7 @@ async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict
 
     * ``param file: Union[Path, str]`` 抽卡记录缓存文件路径
     * ``param data: Dict = {}`` 抽卡记录数据，根据是否传入决定写入/删除或读取
-    - ``return: Tuple[str, Dict]`` 抽卡记录所属 UID（出错时返回错误信息）、抽卡记录数据（成功写入/删除时返回 ``{}``）
+    - ``return: Tuple[str, Dict]`` 抽卡记录所属 UID（出错时返回错误信息）、抽卡记录数据（写入/删除时固定返回 ``{}``）
     """
     uid = search(r"gachalogs-([0-9]{9}).json", str(file))
     if not uid:
@@ -248,11 +262,13 @@ async def checkAuthKey(url: str, skipFmt: bool = True) -> str:
     * ``param skipFmt: bool = True`` 是否跳过格式检查，传入 ``False`` 将根据格式检查结果修正抽卡记录链接
     - ``return: str`` 抽卡记录链接，出错时返回错误信息
     """
-    logger.debug(f"验证抽卡记录链接 {url}")
     if not skipFmt:
-        url = formatInput(url, find="url")["url"]
-        if not url:
+        urlRes = formatInput(url, find="url")
+        if not urlRes:
             return "未找到有效的抽卡记录链接！"
+        else:
+            url = urlRes["url"]
+    logger.debug(f"验证抽卡记录链接 {url}")
     async with AsyncClient() as client:
         try:
             res = await client.get(url)
@@ -271,7 +287,7 @@ async def checkAuthKey(url: str, skipFmt: bool = True) -> str:
             return "链接 AuthKey 失效！"
         if resJson.get("message", "") == "authkey error":
             return "链接 AuthKey 错误！"
-        # https://webstatic.mihoyo.com/admin/mi18n/hk4e_cn/20190926_5d8c80193de82/20190926_5d8c80193de82-zh-cn.json
+        # ref: https://webstatic.mihoyo.com/admin/mi18n/hk4e_cn/20190926_5d8c80193de82/20190926_5d8c80193de82-zh-cn.json
         logger.error(
             f"抽卡记录链接有问题 {resJson.get('retcode', 777)} {resJson.get('message', '')}"
         )
@@ -285,8 +301,12 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
 
     * ``param url: str`` 抽卡记录链接
     * ``param cookie: str`` 含有 `stoken` 字段的米游社 Cookie
-    - ``return: Tuple[str, Dict]`` 抽卡记录链接、角色数据，出错时返回 ``"错误信息", {}``
+    - ``return: Tuple[str, Dict]`` 抽卡记录链接（出错时返回 ``"错误信息"``）、角色及 Cookie 字典数据（出错或旧链接未过期时返回 ``{}``）
     """
+    # 检查传入链接是否仍然有效
+    url = await checkAuthKey(url)
+    if url.startswith("https://"):
+        return url, {}
     # 提取 cookie 中有效字段字典
     usefulCk = formatInput(cookie, find="cookie")
     # Cookie 验证及补全
@@ -307,7 +327,7 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
     # 获取 Cookie 名下角色数据
     role = await queryMihoyo(ckStr, "获取角色")
     if role.get("error"):
-        return role["error"], {}
+        return role["error"], {"cookie": ckStr}
     # 更新抽卡记录链接中的 AuthKey
     data = {
         "auth_appid": "webview_gacha",
@@ -317,7 +337,7 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
     }
     authkeyRes = await queryMihoyo(ckStr, "生成密钥", data=data)
     if not authkeyRes.get("authkey"):
-        return "生成密钥失败！", {}
+        return "生成密钥失败！", {"cookie": ckStr}
     # 更新抽卡记录链接中的卡池 ID
     poolRes = await queryMihoyo("", "获取卡池")
     if not poolRes.get("pool"):
@@ -367,7 +387,7 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
         else ROOT_URL
     )
     url = urlRoot + "?" + parse.urlencode(querys)
-    return await checkAuthKey(url), role
+    return await checkAuthKey(url), {"role": role, "cookie": ckStr}
 
 
 def getGachaLogsApi(logUrl: str, gachaType: str, page: int, endId: int) -> str:
