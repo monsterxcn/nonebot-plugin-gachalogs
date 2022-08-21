@@ -4,7 +4,7 @@
 <p align="center">🤖 用于统计及导出原神祈愿记录的 Nonebot2 插件</p></br>
 
 
-<p align="center">现已支持抽卡记录链接自动更新！</p></br>
+<p align="center"><b>现已支持祈愿历史记录链接自动更新！</b></p></br>
 
 
 <p align="center">
@@ -21,15 +21,15 @@
 </p></br>
 
 
-**安装方法**
+## 安装方法
 
 
-如果你正在使用 2.0.0.beta1 以上版本 NoneBot，推荐使用以下命令安装插件本体：
+如果你正在使用 2.0.0.beta1 以上版本 NoneBot，推荐使用以下命令安装：
 
 
 ```bash
 # 从 nb_cli 安装
-python3 -m nb plugins install nonebot-plugin-gachalogs
+python3 -m nb plugin install nonebot-plugin-gachalogs
 
 # 或从 PyPI 安装
 python3 -m pip install nonebot-plugin-gachalogs
@@ -39,7 +39,9 @@ python3 -m pip install nonebot-plugin-gachalogs
 <details><summary><i>在 NoneBot 2.0.0.alpha16 上使用此插件</i></summary></br>
 
 
-在过时的 NoneBot 2.0.0.alpha16 可能仍有机会体验此插件！不过，千万不要通过 NoneBot 脚手架或 PyPI 安装，你只能通过 Git 手动安装。以下命令仅作参考：
+在过时的 NoneBot 2.0.0.alpha16 上 **可能** 仍有机会体验此插件！不过，千万不要通过 NoneBot 脚手架或 PyPI 安装，低版本仅支持通过 Git 手动安装。
+
+以下命令仅作参考：
 
 
 ```bash
@@ -59,56 +61,74 @@ cp -r data/gachalogs /path/to/bot/data/
 </details>
 
 
-一般来说，无需设置环境变量，只需重启 Bot 即可直接开始使用此插件。如果需要，你也可以在 Nonebot2 当前使用的 `.env` 文件中，参考 [.env.example](.env.example) 添加这些环境变量：
+## 使用须知
 
 
- - `gachalogs_safe_group` 安全群组，只有在安全群组内才允许输入链接、Cookie 等内容
- - `gacha_expire_sec` 祈愿历史记录本地缓存过期秒数，不设置默认 1 小时
- - `resources_dir` 包含 `gachalogs` 文件夹的上级目录路径，不设置默认 Bot 根目录下 `data` 文件夹
- - `gachalogs_font` 抽卡记录绘制使用字体，不设置默认为 `LXGW-Bold.ttf`
- - `gachalogs_pie_font` 抽卡记录饼图绘制使用字体，不设置默认为 `LXGW-Bold-minipie.ttf`
+ - 初次使用 `抽卡记录` 命令时，要求输入祈愿历史记录链接或米游社通行证 Cookie。如果初次使用输入链接（只要回复的内容中含有即可，不必手动截取准确的链接），在该链接的 AuthKey 过期（24 小时）后需要重新输入链接或 Cookie 才能刷新数据。如果初次使用输入 Cookie，只要 Cookie 有效，后续使用时祈愿历史记录链接将自动更新，无需再次输入。
+   
+ - 插件使用米游社通行证 Cookie 来自动更新祈愿历史记录链接，该 Cookie 可在 [米游社通行证](https://user.mihoyo.com/#/login/) 登陆获取，并非一些教程中使用的 [米游社 BBS](https://bbs.mihoyo.com/) Cookie，其中需要包含 `stoken` `stuid` 或 `login_ticket`。
+   
+   此处提供一种获取该 Cookie 的简便方法：在桌面端浏览器 **隐身标签页** 中打开 https://user.mihoyo.com/ ，正常登陆米游社通行证账号；按下 F12 键，切换至「Console / 控制台」页面，在输入处（通常由蓝色「>」符号示意）输入 `document.cookie` 回车，控制台中出现的字符串即为插件需要的 Cookie。你也可以参考 [KimigaiiWuyi/GenshinUID#255](https://github.com/KimigaiiWuyi/GenshinUID/issues/255) 等其他教程获取米游社通行证 Cookie。
+   
+ - 一般来说，插件安装完成后无需设置环境变量，只需重启 Bot 即可开始使用。你也可以在 Nonebot2 当前使用的 `.env` 文件中参考 [.env.example](.env.example) 添加下表给出的环境变量，对插件进行更多配置。环境变量修改后需要重启 Bot 才能生效。
+   
+   | 环境变量 | 必需 | 默认 | 说明 |
+   |:-------|:----:|:-----|:----|
+   | `gachalogs_safe_group` | 否 | `[]` | 安全群组，只有在安全群组内才允许输入链接、Cookie 等内容 |
+   | `gacha_expire_sec` | 否 | `3600` | 祈愿历史记录本地缓存过期秒数 |
+   | `resources_dir` | 否 | `/path/to/bot/data/` | 插件缓存目录的父文件夹，包含 `gachalogs` 文件夹的上级文件夹路径 |
+   | `gachalogs_font` | 否 | `/path/to/bot/data/gachalogs/LXGW-Bold.ttf` | 祈愿历史记录绘制字体 |
+   | `gachalogs_pie_font` | 否 | `/path/to/bot/data/gachalogs/LXGW-Bold-minipie.ttf` | 祈愿历史记录绘制饼图字体 |
+   
+ - 在群组中发送米游社通行证 Cookie 等内容存在安全隐患，因此即使某些命令在群组中触发，处理结果最终也会通过私聊发送。如果用户未添加 Bot 为好友，私聊消息将发送失败。你也可以在环境变量中添加 `gachalogs_safe_group` 定义安全群组，允许在这些群组中直接发送敏感消息，如果大家不在意的话。
+   
+ - commit [`e2f38f3`](https://github.com/monsterxcn/nonebot-plugin-gachalogs/commit/e2f38f30379dac4f98f9314fa012a1272c2dcc95) 之后插件私聊文件发送功能不再依赖腾讯云 COS 转存，只需 go-cqhttp 支持 [上传私聊文件](https://docs.go-cqhttp.org/api/#%E4%B8%8A%E4%BC%A0%E7%A7%81%E8%81%8A%E6%96%87%E4%BB%B6) 接口。因此如果有私聊文件发送需求，务必保证 go-cqhttp 版本不低于 [v1.0.0-rc3](https://github.com/Mrs4s/go-cqhttp/releases/tag/v1.0.0-rc3)。
+   
+ - 使用 `抽卡记录导出` 命令生成的表格与 JSON 文件均符合 [统一可交换祈愿记录标准](https://github.com/DGP-Studio/Snap.Genshin/wiki/StandardFormat)（UIGF）格式，你可以尝试在其他支持此标准的工具中导入。导出的祈愿历史记录链接、米游社通行证 Cookie 在某些地方也许有用。
+   
+ - 插件运行后，会将用户的基本配置信息写入 `config.json` 文件，祈愿历史记录数据缓存于 `gachalogs-{uid}.json` 文件。使用 `抽卡记录删除` 命令默认只删除 `gachalogs-{uid}.json` 文件，如果需要连同指定用户在 `config.json` 文件中的配置一起删除，请使用附带参数 `全部` 等。记录、配置一旦删除将无法恢复，所以 `抽卡记录删除` 命令会要求重新发送附带删除操作确认参数的命令。你也可以在第一次发送命令时就确认删除操作，例如 `抽卡记录删除确认`。
 
 
-\* *私聊导出文件需要 go-cqhttp 支持 [相关接口](https://docs.go-cqhttp.org/api/#%E4%B8%8A%E4%BC%A0%E7%A7%81%E8%81%8A%E6%96%87%E4%BB%B6)*
-
-
-重启 Bot 即可体验此插件。
-
-
-**使用方法**
-
-
-插件支持以下命令：
+## 命令说明
 
 
  - `抽卡记录` / `ckjl`
    
-   返回一张统计饼图，样式与 https://genshin.voderl.cn/ 一致。附带 `-f` / `--force` 可要求强制获取最新祈愿记录，祈愿记录结果默认缓存 1 小时。
+   返回一张祈愿历史记录统计图，样式与 https://genshin.voderl.cn/ 一致。
    
-   初次使用要求输入一次祈愿历史记录链接或米游社通行证 Cookie。如果初次使用输入链接（只要回复的内容中含有即可，不必手动截取准确的链接地址），在该链接的 AuthKey 过期（24 小时）后需要重新输入链接或 Cookie 才能刷新数据。如果初次使用输入 Cookie，只要 Cookie 有效，后续使用时抽卡记录链接将自动更新，无需再次输入。
-   
-   注意，Cookie 需要登陆 [米游社通行证](https://user.mihoyo.com/#/login/) 获取，而非 [米游社 BBS](https://bbs.mihoyo.com/)，其中需要包含 `stoken` `stuid` 或 `login_ticket`。
+   | 可选附带参数 | 默认 | 说明 |
+   |:-----------|:-----|:----|
+   | `刷新` / `-f` / `--force` | 空 | 要求强制刷新最新祈愿历史记录，即使本地缓存未过期（结果默认缓存 1 小时） |
+   | 祈愿历史记录链接 | 空 | 指定祈愿历史记录链接（仅初次使用、无法自动更新祈愿历史记录链接时生效） |
+   | 米游社通行证 Cookie | 空 | 指定米游社通行证 Cookie（仅初次使用、无法自动更新祈愿历史记录链接时生效） |
    
    ![祈愿统计图](data/readme/result.png)
    
- - `抽卡记录导出` / `ckjldc`
+ - `抽卡记录导出` / `logexp` / `ckjldc`
    
-   导出祈愿历史记录，默认导出为表格，可选格式包括 `excel` 表格、`json` 文件、`url` 链接等。此命令还可以附带 `cookie` 来导出当前绑定的米游社 Cookie，你可能在一些地方需要用到它。管理员可使用 `ckjldc [@某人] [格式]` 形式的命令导出指定 QQ 的祈愿历史记录。
+   导出祈愿历史记录表格，通过可选附带参数指定导出祈愿历史记录 JSON 文件、祈愿历史记录链接或米游社通行证 Cookie。
    
-   导出表格与 JSON 文件均符合 [统一可交换祈愿记录标准](https://github.com/DGP-Studio/Snap.Genshin/wiki/StandardFormat)（UIGF）格式，你可以尝试在其他支持此标准的工具中导入。导出链接可以在某些工具中使用。
+   | 可选附带参数 | 默认 | 说明 |
+   |:-----------|:-----|:----|
+   | @某人 | **@自己** | 指定导出记录用户，仅 **Bot 管理员** 可导出其他用户的记录 |
+   | `统一` / `标准` / `uigf` / `json` | 空 | 指定导出祈愿历史记录为 JSON 文件 |
+   | `链接` / `地址` / `url` | 空 | 指定导出祈愿历史记录链接 |
+   | `饼干` / `ck` / `cookie` | 空 | 指定导出米游社通行证 Cookie |
    
-   在不安全群组中使用此命令，Bot 会尝试通过私聊发送文件，如果未添加 Bot 为好友将无法发送导出内容。在环境变量中添加安全群组以允许群聊导出，如果大家并不在意安全隐患的话。插件已不再使用下图中的私聊发送文件方式，而是通过 go-cqhttp 提供的接口。
+   ![导出示意图](data/readme/export.jpg)
    
-   ![导出示意图](data/readme/export.png)
+ - `抽卡记录删除` / `logdel` / `ckjldc`
    
- - `抽卡记录删除` / `ckjlsc`
+   删除本地祈愿历史记录缓存（不会影响 Cookie 等配置数据），通过可选附带参数指定删除全部数据。
    
-   删除本地缓存，不带任何参数默认删除自己的记录，可通过 @某人 的方式指定操作用户，可附带 `all` / `config` / `全部` / `配置` 将配置数据连同记录数据全部删除。非 Bot 管理员只能删除自己的数据。默认的删除只会删除记录数据，不会影响 Cookie 等配置数据。
-   
-   记录和配置一旦删除将无法恢复，所以此命令会要求重新发送附带 `-f` 的命令以确认操作。你也可以在第一次发送命令时就附带 `-f` 直接确认操作。
+   | 可选附带参数 | 默认 | 说明 |
+   |:-----------|:-----|:----|
+   | @某人 | **@自己** | 指定删除记录或配置的用户，仅 **Bot 管理员** 可删除其他用户的记录或配置 |
+   | `强制` / `确认` / `force` / `-f` / `-y` | 空 | 删除操作确认 |
+   | `全部` / `所有` / `配置` / `all` / `-a` / `config` / `-c` | 空 | 指定删除用户的 **配置和记录** 全部数据 |
 
 
-**特别鸣谢**
+## 特别鸣谢
 
 
 [@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export) | [@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer)
