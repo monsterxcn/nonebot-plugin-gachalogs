@@ -1,16 +1,23 @@
 from pathlib import Path
 from typing import Dict
 
-from nonebot import on_command
+from nonebot import on_command, on_notice
+from nonebot.adapters import Bot as rBot
+from nonebot.adapters import Event as rEvent
 from nonebot.log import logger
+from nonebot.rule import Rule
 from nonebot.typing import T_State
 
 try:
     from nonebot.adapters.onebot.v11 import ActionFailed, Bot, Message, MessageSegment
-    from nonebot.adapters.onebot.v11.event import GroupMessageEvent, MessageEvent
+    from nonebot.adapters.onebot.v11.event import (
+        GroupMessageEvent,
+        MessageEvent,
+        NoticeEvent,
+    )
 except ImportError:
     from nonebot.adapters.cqhttp import ActionFailed, Bot, Message, MessageSegment  # type: ignore
-    from nonebot.adapters.cqhttp.event import GroupMessageEvent, MessageEvent  # type: ignore
+    from nonebot.adapters.cqhttp.event import GroupMessageEvent, MessageEvent, NoticeEvent  # type: ignore
 
 from .__meta__ import SAFE_GROUP
 from .data_export import gnrtGachaFile
@@ -23,9 +30,23 @@ from .data_source import (
     updateLogsUrl,
 )
 
+
+async def _OFFLINE_FILE(bot: "rBot", event: "rEvent") -> bool:
+    if isinstance(event, NoticeEvent):
+        if event.notice_type == "offline_file":
+            if hasattr(event, "user_id") and hasattr(event, "file"):
+                if any(
+                    str(event.file.get("name", "")).lower().endswith(t)  # type: ignore
+                    for t in ["json", "xlsx"]
+                ):
+                    return True
+    return False
+
+
 mainMatcher = on_command("抽卡记录", aliases={"ckjl"}, priority=5)
 eMatcher = on_command("抽卡记录导出", aliases={"logexp", "ckjldc"}, priority=5)
 dMatcher = on_command("抽卡记录删除", aliases={"logdel", "ckjlsc"}, priority=5)
+fMatcher = on_notice(rule=Rule(_OFFLINE_FILE))
 
 
 @mainMatcher.handle()
@@ -267,3 +288,22 @@ async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
         await dMatcher.finish(f"删除了 {delTips} 的{rmrf}缓存！", at_sender=True)
     else:
         await dMatcher.finish(updateRes["error"], at_sender=True)
+
+
+@fMatcher.handle()
+async def gotFile(bot: Bot, event: NoticeEvent, state: T_State):
+    # [notice.offline_file]: {
+    #     'time': 1661966162,
+    #     'self_id': BOT_QQ,
+    #     'post_type': 'notice',
+    #     'notice_type': 'offline_file',
+    #     'file': {
+    #         'name': 'name.format',
+    #         'size': 10127,
+    #         'url': 'http://xxx.xx.xx.xxx/ftn_handler/73...a41c257b1'
+    #     },
+    #     'user_id': SENDER_QQ
+    # }
+    sender: int = event.user_id  # type: ignore
+    fileInfo: Dict = event.file  # type: ignore
+    logger.info(f"{sender} 发送了抽卡记录文件 {fileInfo}")
