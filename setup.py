@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.2.0",
     author="monsterxcn",
     author_email="monsterxcn@gmail.com",
-    description="A Genshin GachaLogs analysis plugin for Nonebot2",
+    description="Genshin gacha logs analysis plugin for NoneBot2",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/monsterxcn/nonebot-plugin-gachalogs",
