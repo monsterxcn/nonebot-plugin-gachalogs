@@ -2,6 +2,7 @@ from base64 import b64encode
 from copy import deepcopy
 from io import BytesIO
 from math import floor
+from pathlib import PosixPath
 from time import localtime, strftime
 from typing import Dict, List, Literal, Tuple, Union
 
@@ -48,27 +49,14 @@ def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
     return "#FF5652"
 
 
-def fs(size: int):
+def fs(size: int) -> ImageFont.FreeTypeFont:
     """
     Pillow 绘制字体设置
 
     * ``param size: int`` 字体大小
-    - ``return: ImageFont`` Pillow 字体对象
+    - ``return: ImageFont.FreeTypeFont`` Pillow 字体对象
     """
     return ImageFont.truetype(str(PIL_FONT), size=size)
-
-
-def img2Base64(pic: Image.Image) -> str:
-    """
-    Image 对象的 Base64 编码字符串转换
-
-    * ``param pic: Image.Image`` Pillow 图片对象
-    - ``return: str`` Base64 编码字符串
-    """
-    buf = BytesIO()
-    pic.save(buf, format="PNG")
-    b64Str = b64encode(buf.getbuffer()).decode()
-    return "base64://" + b64Str
 
 
 async def colorfulFive(
@@ -228,7 +216,7 @@ async def drawPie(
     explode = [(0.05 if "五星" in p["label"] else 0) for p in partMap if p["total"]]
     # 绘制饼图
     fig, ax = plt.subplots()
-    fmProp = fm.FontProperties(fname=PIE_FONT)
+    fmProp = fm.FontProperties(fname=PosixPath(PIE_FONT))
     txtProp = {"fontsize": 16, "fontproperties": fmProp}
     ax.set_facecolor("#f9f9f9")
     ax.pie(
@@ -257,13 +245,13 @@ async def drawPie(
         return Image.open(ioBytes), showStar3
 
 
-async def gnrtGachaInfo(rawData: Dict, uid: str) -> str:
+async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
     """
     抽卡统计信息图片生成，通过 pillow 和 matplotlib 绘制图片
 
     * ``param rawData: Dict`` 抽卡记录数据
     * ``param uid: str`` 用户 UID
-    - ``return: str`` 图片 Base64 编码字符串
+    - ``return: bytes`` 图片字节数据
     """
     wishStat = await calcStat(rawData)
     gotPool = [key for key in wishStat if wishStat[key]["total"] > 0]
@@ -275,9 +263,7 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> str:
         tDraw = ImageDraw.Draw(poolImg)
         # 绘制祈愿活动标题
         poolNameW, poolImgH = fs(30).getsize(poolName)
-        tDraw.text(
-            (int((500 - poolNameW) / 2), 20), poolName, font=fs(30), fill="black"
-        )
+        tDraw.text((int((500 - poolNameW) / 2), 20), poolName, font=fs(30), fill="black")
         poolImgH += 20 * 2
         # 绘制饼状图
         pieImg, showStar3 = await drawPie(poolStat, rt="image")
@@ -390,4 +376,6 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> str:
         font=fs(30),
         fill="#808080",
     )
-    return img2Base64(resultImg)
+    buf = BytesIO()
+    resultImg.save(buf, format="PNG")
+    return buf.getvalue()

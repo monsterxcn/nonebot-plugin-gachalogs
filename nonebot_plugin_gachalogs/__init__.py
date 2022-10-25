@@ -1,4 +1,5 @@
 from pathlib import Path
+from traceback import format_exc
 from typing import Dict
 
 from nonebot import on_command, on_notice
@@ -33,7 +34,7 @@ from .data_source import (
 
 async def _OFFLINE_FILE(bot: "rBot", event: "rEvent") -> bool:
     if isinstance(event, NoticeEvent):
-        if event.notice_type == "offline_file":
+        if event.notice_type == "offline_file":  # type: ignore
             if hasattr(event, "user_id") and hasattr(event, "file"):
                 if any(
                     str(event.file.get("name", "")).lower().endswith(t)  # type: ignore
@@ -165,9 +166,7 @@ async def mainGot(bot: Bot, event: MessageEvent, state: T_State):
     if not data.get("logs", {}):
         await mainMatcher.finish()
     imgB64 = await gnrtGachaInfo(data["logs"], data["uid"])
-    await mainMatcher.finish(
-        MessageSegment.image(imgB64) if "base64" in imgB64 else imgB64
-    )
+    await mainMatcher.finish(MessageSegment.image(imgB64))
 
 
 @eMatcher.handle()
@@ -225,9 +224,9 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
                 name=locFile.name,
             )
         locFile.unlink()
-    except ActionFailed as e:
-        logger.error(f"QQ{qq} 导出文件 {fileInfo['file']} 处理出错 {e}")
-        await eMatcher.finish("导不出来，因为文件处理出错辣..", at_sender=True)
+    except ActionFailed:
+        logger.error(f"QQ{qq} 导出文件 {fileInfo['path']} 发送出错 {format_exc()}")
+        await eMatcher.finish("导不出来，因为文件发送出错辣..", at_sender=True)
 
 
 @dMatcher.handle()
