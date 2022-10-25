@@ -194,7 +194,7 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
     elif target["qq"] != qq and qq not in bot.config.superusers:
         await eMatcher.finish("你没有权限导出该用户抽卡记录！")
     # 读取配置数据
-    cfg = await configHelper(qq)
+    cfg = await configHelper(target["qq"])
     if cfg.get("error"):
         await eMatcher.finish(cfg["error"], at_sender=True)
     # 发送导出消息
