@@ -21,7 +21,7 @@
 </p></br>
 
 
-| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/187934009-5d293ee0-dc8f-4160-ac2e-daed07a8d663.png) |
+| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/197698116-40d247c1-3224-4419-a262-2a9989d82f8b.PNG) |
 |:--:|
 
 
@@ -117,7 +117,7 @@ cp -r data/gachalogs /path/to/bot/data/
    | `链接` / `地址` / `url` | 空 | 指定导出祈愿历史记录链接 |
    | `饼干` / `ck` / `cookie` | 空 | 指定导出米哈游通行证 Cookie |
    
-   ![导出示意图](https://user-images.githubusercontent.com/22407052/197698116-40d247c1-3224-4419-a262-2a9989d82f8b.PNG)
+   ![导出示意图](https://user-images.githubusercontent.com/22407052/187933780-64fa0be4-a43f-40f1-9fa9-88e033e9d372.png)
    
  - `抽卡记录删除` / `logdel` / `ckjldc`
    

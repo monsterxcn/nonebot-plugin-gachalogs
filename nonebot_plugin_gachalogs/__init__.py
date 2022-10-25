@@ -176,9 +176,9 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
     # 提取导出目标 QQ 及导出方式
     target = {"qq": qq, "type": "xlsx"}
     for msgSeg in event.message:
-        if msgSeg.type == "at" and not target["qq"]:
+        if msgSeg.type == "at":
             target["qq"] = msgSeg.data["qq"]
-        elif msgSeg.type == "text" and not target["type"]:
+        elif msgSeg.type == "text":
             text = str(msgSeg.data["text"]).replace("ckjldc", "").lower()
             if any(x in text for x in ["饼干", "ck", "cookie"]):
                 target["type"] = "cookie"
