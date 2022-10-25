@@ -175,23 +175,19 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
     qq = event.get_user_id()
     unsafe = isinstance(event, GroupMessageEvent) and (event.group_id not in SAFE_GROUP)  # type: ignore
     # 提取导出目标 QQ 及导出方式
-    target = {"qq": "", "type": ""}
+    target = {"qq": qq, "type": "xlsx"}
     for msgSeg in event.message:
         if msgSeg.type == "at" and not target["qq"]:
             target["qq"] = msgSeg.data["qq"]
         elif msgSeg.type == "text" and not target["type"]:
-            text = msgSeg.data["text"].lower()
-            if any(x in text for x in ["统一", "标准", "uigf", "json"]):
-                target["type"] = "json"
+            text = str(msgSeg.data["text"]).replace("ckjldc", "").lower()
+            if any(x in text for x in ["饼干", "ck", "cookie"]):
+                target["type"] = "cookie"
             elif any(x in text for x in ["链接", "地址", "url"]):
                 target["type"] = "url"
-            elif any(x in text for x in ["饼干", "ck", "cookie"]):
-                target["type"] = "cookie"
-            else:
-                target["type"] = "xlsx"
-    if not target["qq"]:
-        target["qq"] = qq
-    elif target["qq"] != qq and qq not in bot.config.superusers:
+            elif any(x in text for x in ["统一", "标准", "uigf", "json"]):
+                target["type"] = "json"
+    if target["qq"] != qq and qq not in bot.config.superusers:
         await eMatcher.finish("你没有权限导出该用户抽卡记录！")
     # 读取配置数据
     cfg = await configHelper(target["qq"])
