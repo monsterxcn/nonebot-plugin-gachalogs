@@ -1,17 +1,19 @@
 from base64 import b64encode
 from copy import deepcopy
+from datetime import datetime
 from io import BytesIO
 from math import floor
-from pathlib import PosixPath
 from time import localtime, strftime
 from typing import Dict, List, Literal, Tuple, Union
 
 import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
-from numpy import average
+from nonebot.log import logger
+from numpy import average, isnan
 from PIL import Image, ImageDraw, ImageFont
+from pytz import timezone
 
-from .__meta__ import GACHA_TYPE, PIE_FONT, PIL_FONT
+from .__meta__ import GACHA_TYPE, PIE_FONT, PIL_FONT, POOL_INFO
 
 
 def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
@@ -71,7 +73,7 @@ async def colorfulFive(
     * ``param isWeapon: bool = False`` 是否为武器祈愿活动
     - ``return: Image.Image`` Pillow 图片对象
     """
-    ImageSize = (maxWidth, 400)
+    ImageSize = (maxWidth, 1000)
     coordX, coordY = 0, 0  # 绘制坐标
     fontPadding = 10  # 字体行间距
     result = Image.new("RGBA", ImageSize, "#f9f9f9")
@@ -91,13 +93,27 @@ async def colorfulFive(
             wordW = fs(fontSize).getsize(word)[0]
             if coordX + wordW <= maxWidth:
                 # 当前行绘制未超过最大宽度限制，正常绘制
-                tDraw.text((coordX, coordY), word, font=fs(fontSize), fill=color)
-                # 偏移 X 轴绘制坐标使物品名称与自己的抽数间隔半个空格、抽数与下一个物品名称间隔一个空格
-                coordX += (wordW + spaceW) if word[0] == "[" else (wordW + spaceW / 2)
+                tDraw.text(
+                    (coordX, coordY),
+                    word,
+                    font=fs(fontSize),
+                    fill=color,
+                    stroke_width=int(item["up"]),
+                    stroke_fill=color,
+                )
+                # 偏移 X 轴绘制坐标使物品名称与自己的抽数间隔 1/4 个空格、抽数与下一个物品名称间隔一个空格
+                coordX += (wordW + spaceW) if word[0] == "[" else int(wordW + spaceW / 4)
             elif word[0] == "[":
                 # 当前行绘制超过最大宽度限制，且当前绘制为抽数，换行绘制（保证 [ 与数字不分离）
                 coordX, coordY = 0, (coordY + stepY)  # 偏移绘制坐标至下行行首
-                tDraw.text((coordX, coordY), word, font=fs(fontSize), fill=color)
+                tDraw.text(
+                    (coordX, coordY),
+                    word,
+                    font=fs(fontSize),
+                    fill=color,
+                    stroke_width=int(item["up"]),
+                    stroke_fill=color,
+                )
                 coordX = wordW + spaceW  # 偏移 X 轴绘制坐标使抽数与下一个物品名称间隔一个空格
             else:
                 # 当前行绘制超过最大宽度限制，且当前绘制为物品名称，逐字绘制直至超限后换行绘制
@@ -105,24 +121,74 @@ async def colorfulFive(
                 splitStr = [item["name"][:aval], item["name"][aval:]]
                 for i in range(len(splitStr)):
                     s = splitStr[i]
-                    tDraw.text((coordX, coordY), s, font=fs(fontSize), fill=color)
+                    tDraw.text(
+                        (coordX, coordY),
+                        s,
+                        font=fs(fontSize),
+                        fill=color,
+                        stroke_width=int(item["up"]),
+                        stroke_fill=color,
+                    )
                     if i == 0:
                         # 当前行绘制完毕，偏移绘制坐标至下行行首
                         coordX, coordY = 0, (coordY + stepY)
                     else:
-                        # 下一行绘制完毕，偏移 X 轴绘制坐标使物品名称与自己的抽数间隔半个空格
+                        # 下一行绘制完毕，偏移 X 轴绘制坐标使物品名称与自己的抽数间隔 1/4 个空格
                         partW = fs(fontSize).getsize(s)[0]
-                        coordX = partW + spaceW / 2
-    # 所有五星物品数据绘制完毕，绘制五星概率统计结果
-    coordY += stepY + fontPadding * 2  # 偏移 Y 轴绘制坐标至下两行行首（空出一行）
+                        coordX = int(partW + spaceW / 4)
+    # 所有五星物品数据绘制完毕
+    # 绘制五星概率统计结果
     star5Avg = average([item["count"] for item in star5Data])
-    tDraw.text((0, coordY), "五星平均抽数：", font=fs(fontSize), fill="black")
-    tDraw.text(
-        (indent1st, coordY),
-        f"{star5Avg:.2f}",
-        font=fs(fontSize),
-        fill=percent(round(star5Avg), 80 if isWeapon else 90, "rgb"),
+    if not isnan(star5Avg):
+        coordY += stepY + fontPadding * 2  # 偏移 Y 轴绘制坐标至下两行行首（空出一行）
+        tDraw.text((0, coordY), "五星平均抽数：", font=fs(fontSize), fill="black")
+        tDraw.text(
+            (indent1st, coordY),
+            f"{star5Avg:.2f}",
+            font=fs(fontSize),
+            fill=percent(round(star5Avg), 80 if isWeapon else 90, "rgb"),
+        )
+        if len(star5Data) > 1:
+            startW = maxWidth
+            for extreme in [
+                str(max(x["count"] for x in star5Data)),
+                "  最非 ",
+                str(min(x["count"] for x in star5Data)),
+                "最欧 ",
+            ]:
+                tDraw.text(
+                    (startW - fs(fontSize).getlength(extreme), coordY),
+                    extreme,
+                    font=fs(fontSize),
+                    fill=percent(int(extreme), 80 if isWeapon else 90, "rgb")
+                    if extreme.isdigit()
+                    else "black",
+                )
+                startW -= fs(fontSize).getlength(extreme)
+    # 绘制限定五星概率统计结果
+    upStar5Avg = average(
+        [
+            (
+                item["count"]
+                + (
+                    star5Data[iIdx - 1]["count"]
+                    if iIdx >= 1 and not star5Data[iIdx - 1]["up"]
+                    else 0
+                )
+            )
+            for iIdx, item in enumerate(star5Data)
+            if item["up"]
+        ]
     )
+    if not isnan(upStar5Avg):
+        coordY += stepY + fontPadding * 2  # 偏移 Y 轴绘制坐标至下两行行首（空出一行）
+        tDraw.text((0, coordY), "限定五星平均抽数：", font=fs(fontSize), fill="black")
+        tDraw.text(
+            (indent1st + spaceW * 2, coordY),  # 多出 2 个字宽度
+            f"{upStar5Avg:.2f}",
+            font=fs(fontSize),
+            fill=percent(round(upStar5Avg), 160 if isWeapon else 180, "rgb"),
+        )
     # 裁剪图片
     result = result.crop((0, 0, maxWidth, coordY + fH))
     return result
@@ -157,6 +223,7 @@ async def calcStat(gachaLogs: Dict) -> Dict:
         gachaList = gachaLogs[banner]
         gachaList.reverse()  # 千万不可以 gachaList.sort(key=lambda item: item["time"], reverse=False)
         counter, pityCounter = 0, 0  # 总抽数计数器、保底计数器
+        upCounter = {}  # UP 物品计数器
         for item in gachaList:
             counter += 1  # 总抽数计数器递增
             pityCounter += 1  # 保底计数器递增
@@ -169,8 +236,39 @@ async def calcStat(gachaLogs: Dict) -> Dict:
             else:
                 t = "cntChar" if itemType == "角色" else "cntWeapon"
                 gachaStat[t + str(rankType)] += 1  # 对应星级对应类型物品总数递增
+                # 对应星级对应类型物品 UP 总数递增
+                gotUpStar5 = False
+                if int(banner) in [301, 302]:
+                    gachaTime = timezone("Asia/Shanghai").localize(
+                        datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S")
+                    )
+                    belongTo = [
+                        p
+                        for p in POOL_INFO
+                        if p["Type"] == int(item["gacha_type"])
+                        and gachaTime >= datetime.fromisoformat(p["From"])
+                        and gachaTime <= datetime.fromisoformat(p["To"])
+                    ]
+                    if not belongTo or len(belongTo) > 1:
+                        logger.error(
+                            "卡池 {} 异常的 UP 判断：{}({}) in {}".format(
+                                banner,
+                                item["name"],
+                                item["time"],
+                                "/".join(bp["Name"] for bp in belongTo)
+                                if belongTo
+                                else "null",
+                            )
+                        )
+                    elif item["name"] in belongTo[0]["UpPurpleList"]:
+                        upCounter["cntUp4"] = 1 + upCounter.get("cntUp4", 0)
+                    elif item["name"] in belongTo[0]["UpOrangeList"]:
+                        upCounter["cntUp5"] = 1 + upCounter.get("cntUp5", 0)
+                        gotUpStar5 = True
                 if rankType == 5:
-                    gachaStat["star5"].append({"name": itemName, "count": pityCounter})
+                    gachaStat["star5"].append(
+                        {"name": itemName, "count": pityCounter, "up": gotUpStar5}
+                    )
                     pityCounter = 0  # 重置保底计数器
         # 计算未出五星抽数
         star5Cnts = [
@@ -182,6 +280,9 @@ async def calcStat(gachaLogs: Dict) -> Dict:
             timeNow = strftime("%Y-%m-%d %H:%M:%S", localtime())
             gachaStat["startTime"] = gachaList[0].get("time", timeNow)
             gachaStat["endTime"] = gachaList[-1].get("time", timeNow)
+        # UP 物品总数
+        if upCounter:
+            gachaStat.update(upCounter)
         # 更新待返回统计数据
         stat[banner] = gachaStat
     return stat
@@ -215,9 +316,8 @@ async def drawPie(
     sizes = [p["total"] for p in partMap if p["total"]]
     explode = [(0.05 if "五星" in p["label"] else 0) for p in partMap if p["total"]]
     # 绘制饼图
+    textprops = {"fontproperties": fm.FontProperties(fname=PIE_FONT, size=18)}  # type: ignore
     fig, ax = plt.subplots()
-    fmProp = fm.FontProperties(fname=PosixPath(PIE_FONT))
-    txtProp = {"fontsize": 16, "fontproperties": fmProp}
     ax.set_facecolor("#f9f9f9")
     ax.pie(
         sizes,
@@ -230,7 +330,7 @@ async def drawPie(
         radius=0.7,
         explode=explode,
         shadow=False,
-        textprops=txtProp,
+        textprops=textprops,
     )
     ax.axis("equal")
     plt.tight_layout()
@@ -318,29 +418,34 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
             tDraw.text((startW, poolImgH), totalStr6, font=fs(25), fill="black")
         poolImgH += fs(25).getsize(totalStr1)[1] + 20 * 2
         # 绘制概率统计
-        totalStar = {
-            "五星": {
+        totalList = [
+            {
+                "rank": "五星",
                 "cnt": poolStat["cntWeapon5"] + poolStat["cntChar5"],
+                "cntUp": poolStat.get("cntUp5", 0),
                 "color": "#C0713D",
             },
-            "四星": {
+            {
+                "rank": "四星",
                 "cnt": poolStat["cntWeapon4"] + poolStat["cntChar4"],
+                "cntUp": poolStat.get("cntUp4", 0),
                 "color": "#A65FE2",
             },
-            "三星": {"cnt": poolStat["cntStar3"], "color": "#4D8DF7"},
-        }
-        probList = [
-            {"level": key, "total": value["cnt"], "color": value["color"]}
-            for key, value in totalStar.items()
-            if value["cnt"] > 0
+            {"rank": "三星", "cnt": poolStat["cntStar3"], "color": "#4D8DF7"},
         ]
-        for item in probList:
-            cntStr = f"{item['level']}：{item['total']} 次"
-            probStr = f"[{item['total'] / poolTotal * 100:.2f}%]"
+        for item in totalList:
+            if not item["cnt"]:
+                continue
+            cntStr = "{}：{} 次{}".format(
+                item["rank"],
+                item["cnt"],
+                f"（{item['cntUp']} 次限定）" if item.get("cntUp") else "",
+            )
+            probStr = f"[{item['cnt'] / poolTotal * 100:.2f}%]"
             tDraw.text((20, poolImgH), cntStr, font=fs(25), fill=item["color"])
             probStrW = fs(25).getsize(probStr)[0]
             tDraw.text(
-                (int(400 - probStrW), poolImgH),
+                (int((480 if int(banner) in [301, 302] else 400) - probStrW), poolImgH),
                 probStr,
                 font=fs(25),
                 fill=item["color"],
@@ -351,10 +456,8 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         star5Data = poolStat["star5"]
         if star5Data:
             statPic = await colorfulFive(star5Data, 25, 460, isWeapon)
-            statPicW, statPicH = statPic.size
-            statPicCoord = (int((500 - statPicW) / 2), poolImgH)
-            poolImg.paste(statPic, statPicCoord, statPic)
-            poolImgH += statPicH
+            poolImg.paste(statPic, (20, poolImgH), statPic)
+            poolImgH += statPic.size[1]
         # 绘制完成
         poolImgH += 20
         poolImg = poolImg.crop((0, 0, 500, poolImgH))

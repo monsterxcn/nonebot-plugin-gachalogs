@@ -1,7 +1,10 @@
+import json
+from datetime import datetime
 from pathlib import Path
 
-from httpx import stream  # AsyncClient
+from httpx import stream
 from nonebot import get_driver
+from pytz import timezone
 
 cfg = get_driver().config
 
@@ -23,18 +26,15 @@ if not LOCAL_DIR.exists():
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
 
 # 绘图字体
-# auto download font use httpx AsyncClient
-# async with AsyncClient() as client:
-#     font_content = await client.get("", timeout=10)
-#     with open(PIL_FONT, "wb") as f:
-#         f.write(font_content.content)
 PIL_FONT = (
     (Path(cfg.gachalogs_font))
     if hasattr(cfg, "gachalogs_font")
     else (LOCAL_DIR / "LXGW-Bold.ttf")
 )
 if not PIL_FONT.exists():
-    with stream("GET", "https://cdn.monsterx.cn/bot/LXGW-Bold.ttf", verify=False) as r:
+    with stream(
+        "GET", "https://cdn.monsterx.cn/bot/gachalogs/LXGW-Bold.ttf", verify=False
+    ) as r:
         with open(PIL_FONT, "wb") as f:
             for chunk in r.iter_bytes():
                 f.write(chunk)
@@ -45,11 +45,24 @@ PIE_FONT = (
 )
 if not PIE_FONT.exists():
     with stream(
-        "GET", "https://cdn.monsterx.cn/bot/LXGW-Bold-minipie.ttf", verify=False
+        "GET", "https://cdn.monsterx.cn/bot/gachalogs/LXGW-Bold-minipie.ttf", verify=False
     ) as r:
         with open(PIE_FONT, "wb") as f:
             for chunk in r.iter_bytes():
                 f.write(chunk)
+# 卡池信息
+_pools = LOCAL_DIR / "GachaEvent.json"
+if (not _pools.exists()) or (
+    timezone("Asia/Shanghai").localize(datetime.now())
+    > datetime.fromisoformat(json.loads(_pools.read_text(encoding="utf-8"))[-1]["To"])
+):
+    with stream(
+        "GET", "https://cdn.monsterx.cn/bot/gachalogs/GachaEvent.json", verify=False
+    ) as r:
+        with open(_pools, "wb") as f:
+            for chunk in r.iter_bytes():
+                f.write(chunk)
+POOL_INFO = json.loads(_pools.read_text(encoding="utf-8"))
 
 # 抽卡链接地址
 ROOT_URL = "https://hk4e-api.mihoyo.com/event/gacha_info/api/getGachaLog"

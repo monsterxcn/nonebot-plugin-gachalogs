@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nonebot-plugin-gachalogs",
-    version="0.2.0",
+    version="0.2.1",
     author="monsterxcn",
     author_email="monsterxcn@gmail.com",
-    description="Genshin gacha logs analysis plugin for NoneBot2",
+    description="Genshin gacha history analysis plugin for NoneBot2",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/monsterxcn/nonebot-plugin-gachalogs",
@@ -28,5 +28,6 @@ setuptools.setup(
         "httpx>=0.20.0,<1.0.0",
         "matplotlib>=3.5.1",
         "xlsxWriter>=3.0.2",
+        "pytz"
     ],
 )

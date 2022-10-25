@@ -5,7 +5,7 @@
 import json
 from pathlib import Path
 from time import localtime, strftime, time
-from typing import Dict, List, Literal
+from typing import Dict, Generator, List, Literal
 
 from nonebot.log import logger
 from xlsxwriter import Workbook
@@ -14,7 +14,7 @@ from .__meta__ import GACHA_TYPE, GACHA_TYPE_FULL, LOCAL_DIR
 from .data_source import logsHelper
 
 
-def gnrtId():
+def gnrtId() -> Generator[str, None, None]:
     """生成物品 ID"""
     id = 1000000000000000000
     while True:
