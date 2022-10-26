@@ -333,7 +333,6 @@ async def drawPie(
         textprops=textprops,
     )
     ax.axis("equal")
-    plt.tight_layout()
     # 生成图片
     ioBytes = BytesIO()
     plt.savefig(ioBytes, format="png")

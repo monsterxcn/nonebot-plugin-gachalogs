@@ -50,6 +50,7 @@ if not PIE_FONT.exists():
         with open(PIE_FONT, "wb") as f:
             for chunk in r.iter_bytes():
                 f.write(chunk)
+
 # 卡池信息
 _pools = LOCAL_DIR / "GachaEvent.json"
 if (not _pools.exists()) or (
@@ -64,19 +65,6 @@ if (not _pools.exists()) or (
                 f.write(chunk)
 POOL_INFO = json.loads(_pools.read_text(encoding="utf-8"))
 
-# 抽卡链接地址
-ROOT_URL = "https://hk4e-api.mihoyo.com/event/gacha_info/api/getGachaLog"
-ROOT_OVERSEA_URL = ROOT_URL.replace("hk4e-api", "hk4e-api-os")
-# 米游社 API 地址
-TOKEN_API = "https://api-takumi.mihoyo.com/auth/api/getMultiTokenByLoginTicket"
-ROLE_API = "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByStoken"
-POOL_API = "https://webstatic.mihoyo.com/hk4e/gacha_info/cn_gf01/gacha/list.json"
-AUTHKEY_API = "https://api-takumi.mihoyo.com/binding/api/genAuthKey"
-# 米游社请求验证
-CLIENT_SALT = "dWCcD2FsOUXEstC5f9xubswZxEeoBOTc"
-CLIENT_VERSION = "2.28.1"
-CLIENT_TYPE = "2"
-
 # 卡池类型
 GACHA_TYPE_FULL = {
     "100": "新手祈愿",
@@ -89,3 +77,16 @@ GACHA_TYPE_EXCL = ["400"]
 GACHA_TYPE = {
     key: value for key, value in GACHA_TYPE_FULL.items() if key not in GACHA_TYPE_EXCL
 }
+
+# 抽卡链接地址
+ROOT_URL = "https://hk4e-api.mihoyo.com/event/gacha_info/api/getGachaLog"
+ROOT_OVERSEA_URL = ROOT_URL.replace("hk4e-api", "hk4e-api-os")
+# 米游社 API 地址
+TOKEN_API = "https://api-takumi.mihoyo.com/auth/api/getMultiTokenByLoginTicket"
+ROLE_API = "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByStoken"
+POOL_API = "https://webstatic.mihoyo.com/hk4e/gacha_info/cn_gf01/gacha/list.json"
+AUTHKEY_API = "https://api-takumi.mihoyo.com/binding/api/genAuthKey"
+# 米游社请求验证
+CLIENT_SALT = "dWCcD2FsOUXEstC5f9xubswZxEeoBOTc"
+CLIENT_VERSION = "2.28.1"
+CLIENT_TYPE = "2"

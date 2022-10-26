@@ -133,4 +133,4 @@ cp -r data/gachalogs /path/to/bot/data/
 ## 特别鸣谢
 
 
-[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | **[@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export)** | [@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer)
+[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | **[@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export)** | [@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer) | [@DGP-Studio/Snap.Metadata](https://github.com/DGP-Studio/Snap.Metadata)

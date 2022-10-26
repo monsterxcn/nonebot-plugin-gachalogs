@@ -5,6 +5,7 @@
 import json
 from pathlib import Path
 from time import localtime, strftime, time
+from traceback import format_exc
 from typing import Dict, Generator, List, Literal
 
 from nonebot.log import logger
@@ -208,5 +209,5 @@ async def gnrtGachaFile(config: Dict, outFormat: Literal["xlsx", "json"]) -> Dic
                 json.dump(uigfData, f, ensure_ascii=False, indent=2)
             return {"msg": "导出抽卡记录 JSON(UIGF) 完成！", "path": uigfPath}
     except Exception as e:
-        logger.error(f"导出抽卡记录失败 {type(e)}\n{e}")
-        return {"error": f"因为 {type(e)} 导出失败了.."}
+        logger.error(f"导出抽卡记录失败 {e.__class__.__name__}\n{format_exc()}")
+        return {"error": f"因为 {e.__class__.__name__} 导出失败了.."}

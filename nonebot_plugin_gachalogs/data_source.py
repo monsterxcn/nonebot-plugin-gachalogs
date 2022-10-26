@@ -7,6 +7,7 @@ from hashlib import md5
 from pathlib import Path
 from re import search
 from time import localtime, strftime, time
+from traceback import format_exc
 from typing import Dict, List, Literal, Tuple, Union
 from urllib import parse
 
@@ -126,7 +127,9 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
             logger.info(f"QQ{qq} 的配置{modeStr}\n{'{}' if delMode else cfg[qq]}")
             return {} if delMode else cfg[qq]
         except Exception as e:
-            logger.error(f"QQ{qq} 的配置缓存{modeStr}失败：{type(e)}")
+            logger.error(
+                f"QQ{qq} 的配置缓存{modeStr}失败：{e.__class__.__name__}\n{format_exc()}"
+            )
             return {"error": f"QQ{qq} 的配置缓存{modeStr}失败！"}
     else:
         return cfg.get(qq, {"error": f"暂无 QQ{qq} 的抽卡记录配置！"})
@@ -158,7 +161,7 @@ async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict
             logger.info(f"UID{uid} 的抽卡记录已{modeStr}")
             return uid, {}
         except Exception as e:
-            logger.error(f"UID{uid} 的抽卡记录缓存{modeStr}失败：{type(e)}")
+            logger.error(f"UID{uid} 的抽卡记录缓存{modeStr}失败：{e.__class__.__name__}\n{format_exc()}")
             return f"UID{uid} 的抽卡记录缓存{modeStr}失败！", {}
     elif logsFile.exists():
         logs = json.loads(logsFile.read_text(encoding="utf-8"))
@@ -249,8 +252,8 @@ async def queryMihoyo(
             else:
                 raise ValueError(f"未知的请求类型：{aType}")
         except Exception as e:
-            logger.error(f"米游社 {aType} 请求失败：{type(e)}\n{e}")
-            return {"error": f"未能成功{aType}！"}
+            logger.error(f"米游社 {aType} 请求失败：{e.__class__.__name__}\n{format_exc()}")
+            return {"error": f"[{e.__class__.__name__}] 未能成功{aType}！"}
     return rt
 
 
@@ -280,8 +283,8 @@ async def checkAuthKey(url: str, skipFmt: bool = True) -> str:
         except json.decoder.JSONDecodeError:
             return "链接返回无法解析！"
         except Exception as e:
-            logger.error(f"抽卡记录链接验证出错 {type(e)}：{e}")
-            return f"[{type(e)}]链接验证出错！"
+            logger.error(f"抽卡记录链接验证出错 {e.__class__.__name__}\n{format_exc()}")
+            return f"[{e.__class__.__name__}] 链接验证出错！"
     if not resJson["data"]:
         if resJson.get("message", "") == "authkey timeout":
             return "链接 AuthKey 失效！"
