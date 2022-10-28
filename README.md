@@ -21,7 +21,7 @@
 </p></br>
 
 
-| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/197698116-40d247c1-3224-4419-a262-2a9989d82f8b.PNG) |
+| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/198547014-469865b5-a298-4b91-beb2-645e028a4721.PNG) |
 |:--:|
 
 
@@ -55,7 +55,7 @@ cd /path/to/bot
 # source venv/bin/activate
 python3 -m pip install matplotlib pillow xlsxwriter
 # 安装插件
-git clone https://github.com/monsterxcn/nonebot-plugin-gachalogs.git
+git clone https://github.com/monsterxcn/nonebot-plugin-gachalogs.git --single-branch --depth=1
 cd nonebot_plugin_gachalogs
 cp -r nonebot_plugin_gachalogs /path/to/bot/plugins/
 cp -r data/gachalogs /path/to/bot/data/
@@ -133,4 +133,4 @@ cp -r data/gachalogs /path/to/bot/data/
 ## 特别鸣谢
 
 
-[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | **[@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export)** | [@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer) | [@DGP-Studio/Snap.Metadata](https://github.com/DGP-Studio/Snap.Metadata)
+[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | **[@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export)** | [@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer) | [@vikiboss/genshin-helper](https://github.com/vikiboss/genshin-helper) | [@DGP-Studio/Snap.Metadata](https://github.com/DGP-Studio/Snap.Metadata)

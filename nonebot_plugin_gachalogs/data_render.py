@@ -8,7 +8,6 @@ from typing import Dict, List, Literal, Tuple
 import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
 from nonebot.log import logger
-from numpy import average, isnan
 from PIL import Image, ImageDraw, ImageFont
 from pytz import timezone
 
@@ -50,6 +49,27 @@ def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
     return "#FF5652"
 
 
+def getPoolTag(num: int) -> Tuple[str, str, str]:
+    """
+    卡池运势标签
+    ref: https://github.com/vikiboss/genshin-helper/blob/main/src/render/pages/gacha/components/Overview/index.tsx
+
+    * ``param num: int`` 卡池五星平均抽数
+    - ``return: Tuple[str, str, str]`` 卡池运势、字体背景色、字体边缘色
+    """
+    if num == 0:
+        return "无", "#759abf", "#4d8ccb"
+    if num >= 72:
+        return "非", "#6c6c6c", "#505a6d"
+    if num >= 68:
+        return "凶", "#b8b8b8", "#9a9fa8"
+    if num >= 60:
+        return "平", "#a0bb77", "#9ed052"
+    if num >= 54:
+        return "吉", "#aa96c7", "#9d78d2"
+    return "欧", "#e4b95b", "#e4b44d"
+
+
 def fs(size: int) -> ImageFont.FreeTypeFont:
     """
     Pillow 绘制字体设置
@@ -80,8 +100,8 @@ async def colorfulFive(
     # 首行固定文本绘制
     text1st = "五星历史记录："
     tDraw.text((coordX, coordY), text1st, font=fs(fontSize), fill="black")
-    indent1st, fH = fs(fontSize).getsize(text1st)
-    spaceW = indent1st / len(text1st)  # 单个空格宽度，即 fs(fontSize).getsize("宽")[0]
+    indent1st, fH = fs(fontSize).getbbox(text1st)[-2:]
+    spaceW = indent1st / len(text1st)  # 单个空格宽度，即 fs(fontSize).getlength("宽")
     stepY = fH + fontPadding  # 单行绘制结束后的 Y 轴偏移量
     coordX += indent1st  # 首行绘制结束偏移 X 轴绘制坐标
     # 逐行绘制五星历史记录
@@ -89,7 +109,7 @@ async def colorfulFive(
         color = percent(item["count"], 80 if isWeapon else 90, "rgb")
         # 逐个绘制每个物品名称、抽数
         for word in [item["name"], f"[{item['count']}]"]:
-            wordW = fs(fontSize).getsize(word)[0]
+            wordW = fs(fontSize).getlength(word)
             if coordX + wordW <= maxWidth:
                 # 当前行绘制未超过最大宽度限制，正常绘制
                 tDraw.text(
@@ -133,53 +153,51 @@ async def colorfulFive(
                         coordX, coordY = 0, (coordY + stepY)
                     else:
                         # 下一行绘制完毕，偏移 X 轴绘制坐标使物品名称与自己的抽数间隔 1/4 个空格
-                        partW = fs(fontSize).getsize(s)[0]
+                        partW = fs(fontSize).getlength(s)
                         coordX = int(partW + spaceW / 4)
     # 所有五星物品数据绘制完毕
     # 绘制五星概率统计结果
-    star5Avg = average([item["count"] for item in star5Data])
-    if not isnan(star5Avg):
-        coordY += stepY + fontPadding * 2  # 偏移 Y 轴绘制坐标至下两行行首（空出一行）
-        tDraw.text((0, coordY), "五星平均抽数：", font=fs(fontSize), fill="black")
-        tDraw.text(
-            (indent1st, coordY),
-            f"{star5Avg:.2f}",
-            font=fs(fontSize),
-            fill=percent(round(star5Avg), 80 if isWeapon else 90, "rgb"),
-        )
-        if len(star5Data) > 1:
-            startW = maxWidth
-            for extreme in [
-                str(max(x["count"] for x in star5Data)),
-                "  最非 ",
-                str(min(x["count"] for x in star5Data)),
-                "最欧 ",
-            ]:
-                tDraw.text(
-                    (startW - fs(fontSize).getlength(extreme), coordY),
-                    extreme,
-                    font=fs(fontSize),
-                    fill=percent(int(extreme), 80 if isWeapon else 90, "rgb")
-                    if extreme.isdigit()
-                    else "black",
-                )
-                startW -= fs(fontSize).getlength(extreme)
-    # 绘制限定五星概率统计结果
-    upStar5Avg = average(
-        [
-            (
-                item["count"]
-                + (
-                    star5Data[iIdx - 1]["count"]
-                    if iIdx >= 1 and not star5Data[iIdx - 1]["up"]
-                    else 0
-                )
-            )
-            for iIdx, item in enumerate(star5Data)
-            if item["up"]
-        ]
+    star5Avg = sum(item["count"] for item in star5Data) / len(star5Data)
+    coordY += stepY + fontPadding * 2  # 偏移 Y 轴绘制坐标至下两行行首（空出一行）
+    tDraw.text((0, coordY), "五星平均抽数：", font=fs(fontSize), fill="black")
+    tDraw.text(
+        (indent1st, coordY),
+        f"{star5Avg:.2f}",
+        font=fs(fontSize),
+        fill=percent(round(star5Avg), 80 if isWeapon else 90, "rgb"),
     )
-    if not isnan(upStar5Avg):
+    if len(star5Data) > 1:
+        startW = maxWidth
+        for extreme in [
+            str(max(x["count"] for x in star5Data)),
+            "  最非 ",
+            str(min(x["count"] for x in star5Data)),
+            "最欧 ",
+        ]:
+            tDraw.text(
+                (startW - fs(fontSize).getlength(extreme), coordY),
+                extreme,
+                font=fs(fontSize),
+                fill=percent(int(extreme), 80 if isWeapon else 90, "rgb")
+                if extreme.isdigit()
+                else "black",
+            )
+            startW -= fs(fontSize).getlength(extreme)
+    # 绘制限定五星概率统计结果
+    upStar5Cnts = [
+        (
+            item["count"]
+            + (
+                star5Data[iIdx - 1]["count"]
+                if iIdx >= 1 and not star5Data[iIdx - 1]["up"]
+                else 0
+            )
+        )
+        for iIdx, item in enumerate(star5Data)
+        if item["up"]
+    ]
+    if upStar5Cnts:
+        upStar5Avg = sum(upStar5Cnts) / len(upStar5Cnts)
         coordY += stepY + fontPadding * 2  # 偏移 Y 轴绘制坐标至下两行行首（空出一行）
         tDraw.text((0, coordY), "限定五星平均抽数：", font=fs(fontSize), fill="black")
         tDraw.text(
@@ -270,9 +288,7 @@ async def calcStat(gachaLogs: Dict) -> Dict:
                     )
                     pityCounter = 0  # 重置保底计数器
         # 计算未出五星抽数
-        star5Cnts = [
-            gachaStat["star5"][n]["count"] for n in range(len(gachaStat["star5"]))
-        ]
+        star5Cnts = [item["count"] for item in gachaStat["star5"]]
         gachaStat["cntNot5"] = counter - sum(star5Cnts)
         # 记录抽卡记录开始时间、结束时间
         if len(gachaList):
@@ -328,6 +344,7 @@ async def drawPie(stat: Dict) -> Tuple[Image.Image, bool]:
         textprops=textprops,
     )
     ax.axis("equal")
+    # plt.tight_layout()  # 让饼图几乎占满整个图片
     # 生成图片
     ioBytes = BytesIO()
     fig.set_alpha(1.0)
@@ -353,12 +370,22 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
     for banner in gotPool:
         poolName, poolStat = GACHA_TYPE[banner], wishStat[banner]
         isWeapon = True if banner == "302" else False  # 是否为武器祈愿
+        pityCnt = 80 if isWeapon else 90
         poolImg = Image.new("RGBA", (500, 1500), "#f9f9f9")
         tDraw = ImageDraw.Draw(poolImg)
         # 绘制祈愿活动标题
-        poolNameW, poolImgH = fs(30).getsize(poolName)
-        tDraw.text((int((500 - poolNameW) / 2), 20), poolName, font=fs(30), fill="black")
-        poolImgH += 20 * 2
+        tDraw.text(
+            (
+                int((500 - fs(30).getlength(poolName)) / 2),
+                int((75 - fs(30).getbbox(poolName)[-1]) / 2),
+            ),
+            poolName,
+            font=fs(30),
+            fill="black",
+            stroke_width=1,
+            stroke_fill="grey",
+        )
+        poolImgH = 75
         # 绘制饼状图
         pieImg, showStar3 = await drawPie(poolStat)
         poolImg.paste(pieImg, (0, poolImgH), pieImg)
@@ -366,46 +393,84 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         if not showStar3:
             # 绘制隐藏三星数据提示
             tDraw.text(
-                (15, int(poolImgH - 35)), "* 三星武器数据已隐藏", font=fs(20), fill="#808080"
+                (15, poolImgH - 375 + 13), "* 三星武器数据已隐藏", font=fs(20), fill="#808080"
             )
         # 绘制抽卡时间
-        startTime = poolStat["startTime"].split(" ")[0]
-        endTime = poolStat["endTime"].split(" ")[0]
+        startTime: str = poolStat["startTime"].split(" ")[0]
+        endTime: str = poolStat["endTime"].split(" ")[0]
         timeStat = f"{startTime} ~ {endTime}"
-        poolImgH += 10
-        timeStatW, timeStatH = fs(20).getsize(timeStat)
         tDraw.text(
-            (int((500 - timeStatW) / 2), poolImgH),
+            (int((500 - fs(20).getlength(timeStat)) / 2), poolImgH - 35),
             timeStat,
             font=fs(20),
             fill="#808080",
         )
-        poolImgH += timeStatH + 20
-        # 绘制抽数统计  TODO: 优化
-        poolTotal = poolStat["total"]
-        notStar5 = poolStat["cntNot5"]
-        totalStr1 = "共计 "
-        totalStr2 = str(poolTotal)
-        totalStr3 = " 抽"
-        totalStr4 = "，已累计 "
-        totalStr5 = str(notStar5)
-        totalStr6 = " 抽未出 5 星"
+        # 绘制卡池运势
+        star5Data: List[Dict] = poolStat["star5"]
+        star5Avg = (
+            sum(item["count"] for item in star5Data) / len(star5Data) if star5Data else 0
+        )
+        poolTag, poolTagBg, poolTagEdge = getPoolTag(round(star5Avg))
+        tDraw.rounded_rectangle(
+            (500 - 13 - 80, poolImgH - 13 - 80, 500 - 13, poolImgH - 13),
+            fill=poolTagBg,
+            radius=15,
+            width=0,
+        )
+        tDraw.text(
+            (
+                int(500 - 13 - 80 + (80 - fs(60).getlength(poolTag)) / 2),
+                int(poolImgH - 15 - 80 + (80 - fs(60).getbbox(poolTag)[-1]) / 2),
+            ),
+            poolTag,
+            font=fs(60),
+            fill="#ffffff",
+            stroke_width=2,
+            stroke_fill=poolTagEdge,
+        )
+        poolImgH += 20
+        # 绘制抽数统计
+        poolTotal: int = poolStat["total"]
+        notStar5: int = poolStat["cntNot5"]
+        texts = ["共计 ", str(poolTotal), " 抽，相当于 ", str(poolTotal * 160), " 原石"]
+        if notStar5 and poolName != "新手祈愿":
+            texts.extend(
+                [
+                    "\n",
+                    str(notStar5),
+                    " 抽未出{}五星，最多还需 ".format(
+                        "限定"
+                        if ("活动祈愿" in poolName)
+                        and star5Data
+                        and (not star5Data[-1]["up"])
+                        else ""
+                    ),
+                    str((pityCnt - notStar5) * 160),
+                    " 原石",
+                ]
+            )
         startW = 20
-        tDraw.text((startW, poolImgH), totalStr1, font=fs(25), fill="black")
-        startW += fs(25).getsize(totalStr1)[0]
-        tDraw.text((startW, poolImgH), totalStr2, font=fs(25), fill="rgb(24,144,255)")
-        startW += fs(25).getsize(totalStr2)[0]
-        tDraw.text((startW, poolImgH), totalStr3, font=fs(25), fill="black")
-        if notStar5 > 0 and poolName != "新手祈愿":
-            pityCnt = 80 if isWeapon else 90
-            notStar5Color = percent(notStar5, pityCnt, "rgb")
-            startW += fs(25).getsize(totalStr3)[0]
-            tDraw.text((startW, poolImgH), totalStr4, font=fs(25), fill="black")
-            startW += fs(25).getsize(totalStr4)[0]
-            tDraw.text((startW, poolImgH), totalStr5, font=fs(25), fill=notStar5Color)
-            startW += fs(25).getsize(totalStr5)[0]  # "rgb(47,192,22)"
-            tDraw.text((startW, poolImgH), totalStr6, font=fs(25), fill="black")
-        poolImgH += fs(25).getsize(totalStr1)[1] + 20 * 2
+        for txtIdx, text in enumerate(texts):
+            if text == "\n":
+                poolImgH += fs(25).getbbox("高")[-1] + 10
+                startW = 20
+                continue
+            color = (
+                (
+                    "#1890ff"
+                    if txtIdx in [1, 3]
+                    else percent(
+                        (pityCnt - int(text)) if int(text) < 91 else (pityCnt - notStar5),
+                        pityCnt,
+                        "rgb",
+                    )
+                )
+                if text.isdigit()
+                else "black"
+            )
+            tDraw.text((startW, poolImgH), text, font=fs(25), fill=color)
+            startW += fs(25).getlength(text)
+        poolImgH += fs(25).getbbox("高")[-1] + 20 * 2
         # 绘制概率统计
         totalList = [
             {
@@ -432,17 +497,16 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
             )
             probStr = f"[{item['cnt'] / poolTotal * 100:.2f}%]"
             tDraw.text((20, poolImgH), cntStr, font=fs(25), fill=item["color"])
-            probStrW = fs(25).getsize(probStr)[0]
+            probStrW = fs(25).getlength(probStr)
             tDraw.text(
                 (int((480 if int(banner) in [301, 302] else 400) - probStrW), poolImgH),
                 probStr,
                 font=fs(25),
                 fill=item["color"],
             )
-            poolImgH += fs(25).getsize(cntStr)[1] + 20
+            poolImgH += fs(25).getbbox("高")[-1] + 20
         # 绘制五星物品统计
         poolImgH += 20
-        star5Data = poolStat["star5"]
         if star5Data:
             statPic = await colorfulFive(star5Data, 25, 460, isWeapon)
             poolImg.paste(statPic, (20, poolImgH), statPic)
@@ -451,6 +515,7 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         poolImgH += 20
         poolImg = poolImg.crop((0, 0, 500, poolImgH))
         imageList.append(poolImg)
+
     # 合并图片
     maxWidth = 500 * len(imageList)
     maxHeight = max([img.height for img in imageList])
@@ -458,16 +523,18 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
     tDraw = ImageDraw.Draw(resultImg)
     for i, img in enumerate(imageList):
         resultImg.paste(img, (500 * i, 0), img)
+
     # 绘制右下角更新时间戳及 UID
     # reportTime = strftime("%m-%d %H:%M:%S", localtime(rawData["time"]))
     stampStr = f"[{uid.replace(uid[3:-3], '***', 1)}]"
-    stampW, stampH = fs(30).getsize(stampStr)
+    stampW, stampH = fs(30).getbbox(stampStr)[-2:]
     tDraw.text(
         (int(maxWidth - stampW), int(maxHeight - stampH)),
         stampStr,
         font=fs(30),
         fill="#808080",
     )
+
     buf = BytesIO()
     resultImg.save(buf, format="PNG")
     return buf.getvalue()

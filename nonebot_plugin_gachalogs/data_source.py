@@ -161,7 +161,9 @@ async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict
             logger.info(f"UID{uid} 的抽卡记录已{modeStr}")
             return uid, {}
         except Exception as e:
-            logger.error(f"UID{uid} 的抽卡记录缓存{modeStr}失败：{e.__class__.__name__}\n{format_exc()}")
+            logger.error(
+                f"UID{uid} 的抽卡记录缓存{modeStr}失败：{e.__class__.__name__}\n{format_exc()}"
+            )
             return f"UID{uid} 的抽卡记录缓存{modeStr}失败！", {}
     elif logsFile.exists():
         logs = json.loads(logsFile.read_text(encoding="utf-8"))
