@@ -1,10 +1,9 @@
-from base64 import b64encode
 from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from math import floor
 from time import localtime, strftime
-from typing import Dict, List, Literal, Tuple, Union
+from typing import Dict, List, Literal, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
@@ -288,15 +287,12 @@ async def calcStat(gachaLogs: Dict) -> Dict:
     return stat
 
 
-async def drawPie(
-    stat: Dict, rt: Literal["base64", "image"] = "base64"
-) -> Tuple[Union[str, Image.Image], bool]:
+async def drawPie(stat: Dict) -> Tuple[Image.Image, bool]:
     """
     单个饼图绘制
 
     * ``param stat: Dict`` 统计数据，由 ``calcStat()`` 生成
-    * ``param rt: Literal["base64", "image"] = "base64"`` 返回结果类型，默认为 Base64 编码字符串，传入 ``image`` 则返回 ``PIL.Image.Image`` 对象
-    - ``return: Tuple[Union[str, Image.Image], bool]`` 返回结果、是否展示三星物品数据
+    - ``return: Tuple[Image.Image, bool]`` 返回饼图、是否展示三星物品数据
     """
     partMap = [
         {"label": "三星武器", "color": "#73c0de", "total": stat["cntStar3"]},
@@ -318,7 +314,6 @@ async def drawPie(
     # 绘制饼图
     textprops = {"fontproperties": fm.FontProperties(fname=PIE_FONT, size=18)}  # type: ignore
     fig, ax = plt.subplots()
-    ax.set_facecolor("#f9f9f9")
     ax.pie(
         sizes,
         labels=labels,
@@ -335,13 +330,13 @@ async def drawPie(
     ax.axis("equal")
     # 生成图片
     ioBytes = BytesIO()
-    plt.savefig(ioBytes, format="png")
-    ioBytes.seek(0)
-    if rt == "base64":
-        b64Code = b64encode(ioBytes.read()).decode()
-        return b64Code, showStar3
-    else:
-        return Image.open(ioBytes), showStar3
+    fig.set_alpha(1.0)
+    plt.savefig(ioBytes, format="png", facecolor="#ffffff")
+    pieImg = Image.open(ioBytes)
+    # (640, 480) => (500, 375)
+    pieImg = pieImg.resize((500, 375), Image.Resampling.LANCZOS).convert("RGBA")
+    # pieImg.save("pie.png")
+    return pieImg, showStar3
 
 
 async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
@@ -365,14 +360,9 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         tDraw.text((int((500 - poolNameW) / 2), 20), poolName, font=fs(30), fill="black")
         poolImgH += 20 * 2
         # 绘制饼状图
-        pieImg, showStar3 = await drawPie(poolStat, rt="image")
-        assert isinstance(pieImg, Image.Image)
-        # pieImg.size = (640, 480)
-        pieImg = pieImg.resize(
-            (500, int(pieImg.height * 500 / pieImg.width)), Image.ANTIALIAS
-        ).convert("RGBA")
+        pieImg, showStar3 = await drawPie(poolStat)
         poolImg.paste(pieImg, (0, poolImgH), pieImg)
-        poolImgH += pieImg.height
+        poolImgH += 375  # pieImg.height
         if not showStar3:
             # 绘制隐藏三星数据提示
             tDraw.text(
