@@ -99,12 +99,9 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> Path:
                 "border": 1,
             }
         )
-        star5Style = wb.add_format({"color": "#bd6932", "bold": True})
-        star4Style = wb.add_format({"color": "#a256e1", "bold": True})
-        star3Style = wb.add_format({"color": "#8e8e8e"})
-        worksheet.set_column("A:A", 22)
-        worksheet.set_column("B:B", 14)
-        worksheet.set_column("E:E", 14)
+        worksheet.set_column("A:A", 22)  # 时间
+        worksheet.set_column("B:B", 14)  # 名称
+        worksheet.set_column("E:E", 14)  # 祈愿类型
         # 写入表头
         header = ["时间", "名称", "物品类型", "星级", "祈愿类型", "总次数", "保底内"]
         worksheet.write_row(0, 0, header, headerStyle)
@@ -132,16 +129,27 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> Path:
         # 三星、四星、五星物品高亮
         row1st, rowLast = 1, len(gachaList)
         col1st, colLast = 0, len(header) - 1
-        tmpRank = 3
-        for style in [star3Style, star4Style, star5Style]:
-            formula = {
+        rankStyle = [
+            {"color": "#8e8e8e"},  # 3
+            {"color": "#a256e1", "bold": True},  # 4
+            {"color": "#bd6932", "bold": True},  # 5
+        ]
+        for styleId, style in enumerate(rankStyle):
+            _format = {
                 "type": "formula",
-                "criteria": f"=$D2={tmpRank}",
-                "format": style,
+                "criteria": f"=$D2={styleId + 3}",
+                "format": wb.add_format(style),
             }
-            worksheet.conditional_format(row1st, col1st, rowLast, colLast, formula)
+            worksheet.conditional_format(row1st, col1st, rowLast, colLast, _format)
     # 额外新建原始数据页面
     worksheet = wb.add_worksheet("原始数据")
+    worksheet.set_column("B:B", 14)  # gacha_type
+    worksheet.set_column("C:C", 22)  # id
+    worksheet.set_column("E:E", 14)  # item_type
+    worksheet.set_column("G:G", 14)  # name
+    worksheet.set_column("H:H", 14)  # rank_type
+    worksheet.set_column("I:I", 22)  # time
+    worksheet.set_column("J:J", 14)  # uid
     rawHeader = [
         "count",
         "gacha_type",
