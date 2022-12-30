@@ -51,6 +51,36 @@ if not PIE_FONT.exists():
             for chunk in r.iter_bytes():
                 f.write(chunk)
 
+# 成就绘图资源
+ACHIEVE_FONT = (
+    (Path(cfg.gachalogs_achieve_font))
+    if hasattr(cfg, "gachalogs_achieve_font")
+    else (LOCAL_DIR / "HYWH-85W.ttf")
+)
+if not ACHIEVE_FONT.exists():
+    with stream(
+        "GET", "https://cdn.monsterx.cn/bot/gachalogs/HYWH-85W.ttf", verify=False
+    ) as r:
+        with open(ACHIEVE_FONT, "wb") as f:
+            for chunk in r.iter_bytes():
+                f.write(chunk)
+ACHIEVE_BG = LOCAL_DIR / "achieve-nodetail.png"
+if not ACHIEVE_BG.exists():
+    with stream(
+        "GET", "https://cdn.monsterx.cn/bot/gachalogs/achieve-nodetail.png", verify=False
+    ) as r:
+        with open(ACHIEVE_BG, "wb") as f:
+            for chunk in r.iter_bytes():
+                f.write(chunk)
+ACHIEVE_BG_DETAIL = LOCAL_DIR / "achieve-detail.png"
+if not ACHIEVE_BG_DETAIL.exists():
+    with stream(
+        "GET", "https://cdn.monsterx.cn/bot/gachalogs/achieve-detail.png", verify=False
+    ) as r:
+        with open(ACHIEVE_BG_DETAIL, "wb") as f:
+            for chunk in r.iter_bytes():
+                f.write(chunk)
+
 # 卡池信息
 _pools = LOCAL_DIR / "GachaEvent.json"
 if (not _pools.exists()) or (
@@ -87,6 +117,6 @@ ROLE_API = "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByStoken"
 POOL_API = "https://webstatic.mihoyo.com/hk4e/gacha_info/cn_gf01/gacha/list.json"
 AUTHKEY_API = "https://api-takumi.mihoyo.com/binding/api/genAuthKey"
 # 米游社请求验证
-CLIENT_SALT = "dWCcD2FsOUXEstC5f9xubswZxEeoBOTc"
-CLIENT_VERSION = "2.28.1"
+CLIENT_SALT = "fdv0fY9My9eA7MR0NpjGP9RjueFvjUSQ"  # "dWCcD2FsOUXEstC5f9xubswZxEeoBOTc"
+CLIENT_VERSION = "2.40.1"  # "2.28.1"
 CLIENT_TYPE = "2"

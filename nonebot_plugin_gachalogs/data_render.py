@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from math import floor
-from time import localtime, strftime
+from time import localtime, strftime, time
 from typing import Dict, List, Literal, Tuple
 
 import matplotlib.pyplot as plt
@@ -11,7 +11,16 @@ from nonebot.log import logger
 from PIL import Image, ImageDraw, ImageFont
 from pytz import timezone
 
-from .__meta__ import GACHA_TYPE, PIE_FONT, PIL_FONT, POOL_INFO
+from .__meta__ import (
+    GACHA_TYPE,
+    PIE_FONT,
+    PIL_FONT,
+    POOL_INFO,
+    ACHIEVE_FONT,
+    ACHIEVE_BG,
+    ACHIEVE_BG_DETAIL,
+)
+from .gacha_achieve import calcAchievement
 
 
 def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
@@ -62,7 +71,7 @@ def getPoolTag(num: int) -> Tuple[str, str, str]:
     if num >= 72:
         return "非", "#6c6c6c", "#505a6d"
     if num >= 68:
-        return "凶", "#b8b8b8", "#9a9fa8"
+        return "愁", "#b8b8b8", "#9a9fa8"
     if num >= 60:
         return "平", "#a0bb77", "#9ed052"
     if num >= 54:
@@ -70,14 +79,14 @@ def getPoolTag(num: int) -> Tuple[str, str, str]:
     return "欧", "#e4b95b", "#e4b44d"
 
 
-def fs(size: int) -> ImageFont.FreeTypeFont:
+def fs(size: int, achieve: bool = False) -> ImageFont.FreeTypeFont:
     """
     Pillow 绘制字体设置
 
     * ``param size: int`` 字体大小
     - ``return: ImageFont.FreeTypeFont`` Pillow 字体对象
     """
-    return ImageFont.truetype(str(PIL_FONT), size=size)
+    return ImageFont.truetype(str(ACHIEVE_FONT if achieve else PIL_FONT), size=size)
 
 
 async def colorfulFive(
@@ -537,4 +546,115 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
 
     buf = BytesIO()
     resultImg.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
+    """
+    抽卡成就图片生成，通过 pillow 绘制图片
+
+    * ``param rawData: Dict`` 抽卡记录数据
+    * ``param uid: str`` 用户 UID
+    - ``return: bytes`` 图片字节数据
+    """
+    achievements = await calcAchievement(rawData)
+    result = Image.new("RGBA", (720, 110 * len(achievements) + 10 + 100), "#f9f9f9")
+    drawer = ImageDraw.Draw(result)
+
+    # 标题
+    title = f"UID{uid} 抽卡成就"
+    drawer.text(
+        (int((720 - fs(36, True).getlength(title)) / 2), 20),
+        title,
+        font=fs(36, True),
+        fill="black",
+        stroke_width=1,
+        stroke_fill="grey",
+    )
+    # TODO: 使用绘制成就时的最后一抽的时间
+    timeStr = strftime("%Y-%m-%d %H:%M:%S", localtime(int(time())))
+    drawer.text(
+        (int((720 - fs(18, True).getlength(timeStr)) / 2), 70),
+        timeStr,
+        font=fs(18, True),
+        fill="#808080",
+    )
+
+    bgPure = Image.open(ACHIEVE_BG)
+    bgDetail = Image.open(ACHIEVE_BG_DETAIL)
+    for aIdx, achievement in enumerate(achievements):
+        startHeight = 110 * (aIdx + 1)
+        bg = bgDetail if achievement.get("value") else bgPure
+        result.paste(bg, (10, startHeight), bg)
+        # 名称
+        drawer.text(
+            (115, startHeight + 18),
+            achievement["title"],
+            font=fs(22, True),
+            fill="#585757",
+        )
+        # 描述
+        multilineText, tmpText, tmpLength = [], "", 0
+        maxLength = 445 if achievement.get("value") else 565
+        for s in achievement["info"]:
+            length = fs(16, True).getlength(s)
+            if tmpLength + length <= maxLength:
+                tmpText += s
+                tmpLength += length
+            else:
+                multilineText.append(tmpText)
+                tmpText = s
+                tmpLength = length
+        if tmpText.strip():
+            multilineText.append(tmpText)
+        multilineText = [s.strip() for s in multilineText if s.strip()]
+        spacing = (0.3 if len(multilineText) < 3 else 0.1) * 16
+        drawer.multiline_text(
+            (
+                125,
+                startHeight
+                + 100
+                - 18
+                - 16 * len(multilineText)
+                - spacing * (len(multilineText) - 1),
+            ),
+            "\n".join(multilineText),
+            font=fs(16, True),
+            fill="#988B81",
+            spacing=spacing,
+            align="left",
+        )
+        # 详情
+        if achievement.get("value"):
+            drawer.text(
+                (
+                    int(582 + (128 - fs(20, True).getlength(achievement["value"])) / 2),
+                    int(
+                        startHeight
+                        + (100 - fs(20, True).getbbox(achievement["value"])[-1]) / 2
+                    ),
+                ),
+                achievement["value"],
+                font=fs(20, True),
+                fill="#988B81",
+            )
+            drawer.text(
+                (
+                    int(
+                        582
+                        + (128 - fs(15, True).getlength(achievement["achievedTime"])) / 2
+                    ),
+                    int(
+                        startHeight
+                        + 76
+                        + (20 - fs(15, True).getbbox(achievement["value"])[-1]) / 2
+                    ),
+                ),
+                achievement["achievedTime"],
+                font=fs(15, True),
+                fill="#988B81",
+            )
+
+    buf = BytesIO()
+    result.save(buf, format="PNG")
     return buf.getvalue()

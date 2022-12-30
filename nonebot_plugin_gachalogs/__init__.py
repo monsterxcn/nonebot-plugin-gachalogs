@@ -22,7 +22,7 @@ except ImportError:
 
 from .__meta__ import SAFE_GROUP
 from .data_export import gnrtGachaFile
-from .data_render import gnrtGachaInfo
+from .data_render import gnrtGachaInfo, gnrtGachaArchieve
 from .data_source import (
     checkAuthKey,
     configHelper,
@@ -36,15 +36,16 @@ async def _OFFLINE_FILE(bot: "rBot", event: "rEvent") -> bool:
     if isinstance(event, NoticeEvent):
         if event.notice_type == "offline_file":  # type: ignore
             if hasattr(event, "user_id") and hasattr(event, "file"):
-                if any(
-                    str(event.file.get("name", "")).lower().endswith(t)  # type: ignore
-                    for t in ["json", "xlsx"]
+                filename = str(event.file.get("name", "")).lower()  # type: ignore
+                if any(filename.endswith(t) for t in ["json", "xlsx"]) or (
+                    filename.startswith("gachalogs-") and filename.endswith(".json.bak")
                 ):
                     return True
     return False
 
 
 mainMatcher = on_command("抽卡记录", aliases={"ckjl"}, priority=5)
+aMatcher = on_command("抽卡成就", aliases={"ckcj"}, priority=5)
 eMatcher = on_command("抽卡记录导出", aliases={"logexp", "ckjldc"}, priority=5)
 dMatcher = on_command("抽卡记录删除", aliases={"logdel", "ckjlsc"}, priority=5)
 fMatcher = on_notice(rule=Rule(_OFFLINE_FILE))
@@ -167,6 +168,21 @@ async def mainGot(bot: Bot, event: MessageEvent, state: T_State):
         await mainMatcher.finish()
     imgB64 = await gnrtGachaInfo(data["logs"], data["uid"])
     await mainMatcher.finish(MessageSegment.image(imgB64))
+
+
+@aMatcher.handle()
+async def gachaAchievement(bot: Bot, event: MessageEvent, state: T_State):
+    qq = event.get_user_id()
+    # 读取配置数据
+    cfg = await configHelper(qq)
+    if cfg.get("error"):
+        await aMatcher.finish(cfg["error"], at_sender=True)
+    # 生成抽卡成就
+    uid, logs = await logsHelper(cfg["logs"])
+    if not logs:
+        await aMatcher.finish()
+    imgB64 = await gnrtGachaArchieve(logs, uid)
+    await aMatcher.finish(MessageSegment.image(imgB64))
 
 
 @eMatcher.handle()
