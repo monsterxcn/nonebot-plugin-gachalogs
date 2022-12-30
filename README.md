@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/monsterxcn/nonebot-plugin-gachalogs/actions">
-    <img src="https://img.shields.io/github/workflow/status/monsterxcn/nonebot-plugin-gachalogs/Build%20distributions?style=flat-square" alt="actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/monsterxcn/nonebot-plugin-gachalogs/publish.yml?branch=main&style=flat-square" alt="actions">
   </a>
   <a href="https://raw.githubusercontent.com/monsterxcn/nonebot-plugin-gachalogs/master/LICENSE">
     <img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gachalogs?style=flat-square" alt="license">
@@ -21,8 +21,8 @@
 </p></br>
 
 
-| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/198547014-469865b5-a298-4b91-beb2-645e028a4721.PNG) |
-|:--:|
+| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/198547014-469865b5-a298-4b91-beb2-645e028a4721.PNG) | ![成就示意图](https://user-images.githubusercontent.com/22407052/210079232-795616d8-d85b-4940-9f84-bd12c9bdb3f7.PNG) |
+|:--:|:--:|
 
 
 ## 安装方法
@@ -83,6 +83,7 @@ cp -r data/gachalogs /path/to/bot/data/
    | `resources_dir` | 否 | `/path/to/bot/data/` | 插件缓存目录的父文件夹，包含 `gachalogs` 文件夹的上级文件夹路径 |
    | `gachalogs_font` | 否 | `/path/to/bot/data/gachalogs/LXGW-Bold.ttf` | 祈愿历史记录绘制字体 |
    | `gachalogs_pie_font` | 否 | `/path/to/bot/data/gachalogs/LXGW-Bold-minipie.ttf` | 祈愿历史记录绘制饼图字体 |
+   | `gachalogs_achieve_font` | 否 | `/path/to/bot/data/gachalogs/HYWH-85W.ttf` | 祈愿历史记录绘制成就字体 |
    
  - 在群组中发送米哈游通行证 Cookie 等内容存在安全隐患，因此即使某些命令在群组中触发，处理结果最终也会通过私聊发送。如果用户未添加 Bot 为好友，私聊消息将发送失败。你也可以在环境变量中添加 `gachalogs_safe_group` 定义安全群组，允许在这些群组中直接发送敏感消息，如果大家不在意的话。
    
@@ -105,6 +106,10 @@ cp -r data/gachalogs /path/to/bot/data/
    | `刷新` / `-f` / `--force` | 空 | 要求强制刷新最新祈愿历史记录，即使本地缓存未过期（结果默认缓存 1 小时） |
    | 祈愿历史记录链接 | 空 | 指定祈愿历史记录链接（仅初次使用、无法自动更新祈愿历史记录链接时生效） |
    | 米哈游通行证 Cookie | 空 | 指定米哈游通行证 Cookie（仅初次使用、无法自动更新祈愿历史记录链接时生效） |
+   
+ - `抽卡成就` / `ckcj`
+   
+   返回一张祈愿历史记录成就图，样式与 https://genshin.voderl.cn/ 一致。
    
  - `抽卡记录导出` / `logexp` / `ckjldc`
    
