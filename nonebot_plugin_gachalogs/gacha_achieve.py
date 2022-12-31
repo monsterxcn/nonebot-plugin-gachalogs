@@ -92,6 +92,11 @@ async def getLogsAnalysis(gachaLogs: Dict) -> Dict:
     return analysis
 
 
+def mergeItemStr(items: List[str]) -> str:
+    """合并出货记录消息，最多显示三个物品"""
+    return "、".join(items[:3]) + ("等" if len(items) > 3 else "")
+
+
 async def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
     """五星最欧最非成就"""
     if not len(fiveData):
@@ -101,10 +106,13 @@ async def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
     _fiveData = sorted(fiveData, key=lambda x: x["pity"])
     minPityItem, maxPityItem = _fiveData[0], _fiveData[-1]
     if minPityItem["pity"] <= 30:
+        _items = mergeItemStr(
+            [f"「{d['name']}」" for d in fiveData if d["pity"] == minPityItem["pity"]]
+        )
         achievements.append(
             {
                 "title": "「欧皇时刻」",
-                "info": f"只抽了 {minPityItem['pity']} 次就抽到了「{minPityItem['name']}」{'，你的欧气无人能敌！' if minPityItem['pity'] <= 5 else ''}",
+                "info": f"只抽了 {minPityItem['pity']} 次就抽到了{_items}{'，你的欧气无人能敌！' if minPityItem['pity'] <= 5 else ''}",
                 "achievedTime": minPityItem["time"],
                 "value": str(minPityItem["pity"]),
             }
@@ -115,10 +123,13 @@ async def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
             if 83 < maxPityItem["pity"] < 89
             else "无穷"
         )
+        _items = mergeItemStr(
+            [f"「{d['name']}」" for d in fiveData if d["pity"] == maxPityItem["pity"]]
+        )
         achievements.append(
             {
                 "title": "「原来非酋竟是我自己」",
-                "info": f"抽了 {maxPityItem['pity']} 次才最终抽到了「{maxPityItem['name']}」{f'，你竟是{_rarity}里挑一的非酋！' if minPityItem['pity'] >= 84 else ''}",
+                "info": f"抽了 {maxPityItem['pity']} 次才最终抽到了{_items}{f'，你竟是{_rarity}里挑一的非酋！' if minPityItem['pity'] >= 84 else ''}",
                 "achievedTime": maxPityItem["time"],
                 "value": str(maxPityItem["pity"]),
             }
@@ -199,13 +210,13 @@ async def gachaMaxDay(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
         )
     else:
         _five = [f"「{i['name']}」" for i in days[dayIdx]["five"]]
-        results = "、".join(
-            f"{k}{f'×{v}' if v > 1 else ''}" for k, v in Counter(_five).items()
+        _items = mergeItemStr(
+            [f"{k}{f'×{v}' if v > 1 else ''}" for k, v in Counter(_five).items()]
         )
         achievements.append(
             {
                 "title": "「豪掷千金」",
-                "info": f"在 {dayIdx} 这一天，你共抽取了 {days[dayIdx]['count']} 次。在抽到{results}时，你有没有很开心呢？",
+                "info": f"在 {dayIdx} 这一天，你共抽取了 {days[dayIdx]['count']} 次。在抽到{_items}时，你有没有很开心呢？",
                 "achievedTime": dayIdx,
                 "value": str(days[dayIdx]["count"]),
             }
@@ -359,8 +370,8 @@ async def gachaMostChar(allData: Dict[str, Dict[str, int]]) -> List[Dict[str, st
     mostFour = dict(sorted(allData["4-角色"].items(), key=lambda x: x[1]))
     if mostFive and mostFive[list(mostFive.keys())[-1]] > 1:
         count = mostFive[list(mostFive.keys())[-1]]
-        names = "、".join(
-            f"「{n}」×{count}" for n in [k for k, v in mostFive.items() if v == count]
+        names = mergeItemStr(
+            [f"「{n}」×{count}" for n in [k for k, v in mostFive.items() if v == count]]
         )
         achievements.append(
             {
@@ -370,8 +381,8 @@ async def gachaMostChar(allData: Dict[str, Dict[str, int]]) -> List[Dict[str, st
         )
     if mostFour and mostFour[list(mostFour.keys())[-1]] > 1:
         count = mostFour[list(mostFour.keys())[-1]]
-        names = "、".join(
-            f"「{n}」×{count}" for n in [k for k, v in mostFour.items() if v == count]
+        names = mergeItemStr(
+            [f"「{n}」×{count}" for n in [k for k, v in mostFour.items() if v == count]]
         )
         achievements.append(
             {
