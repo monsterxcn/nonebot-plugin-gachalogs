@@ -1,7 +1,7 @@
 import asyncio
 from collections import Counter
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from pytz import timezone
 
@@ -383,14 +383,21 @@ async def gachaMostChar(allData: Dict[str, Dict[str, int]]) -> List[Dict[str, st
     return achievements
 
 
-async def calcAchievement(rawData: Dict) -> List[Dict[str, str]]:
+async def calcAchievement(rawData: Dict) -> Tuple[str, List[Dict[str, str]]]:
     """
     成就数据提取
 
     * ``param rawData: Dict`` 抽卡记录数据
-    - ``return: List[Dict[str, str]]`` 成就数据
+    - ``return: Tuple[str, List[Dict[str, str]]]`` 记录范围、成就数据
     """
     analysis = await getLogsAnalysis(rawData)
+
+    times = list(analysis["logs"].keys())
+    total = sum(sum(n for _, n in d.items()) for _, d in analysis["all"].items())
+    scope = "{} 共 {} 抽".format(
+        f"{times[0]} ~ {times[-1]}" if len(times) > 1 else f"{times[0]}", total
+    )
+
     tasks = [
         gachaPityLimit(analysis["five"]),
         gachaNotExist(analysis["null"]),
@@ -401,4 +408,6 @@ async def calcAchievement(rawData: Dict) -> List[Dict[str, str]]:
         gachaMostChar(analysis["all"]),
     ]
     calcRes = await asyncio.gather(*tasks)
-    return [item for subList in calcRes for item in subList]
+    achievements = [item for subList in calcRes for item in subList]
+
+    return scope, achievements

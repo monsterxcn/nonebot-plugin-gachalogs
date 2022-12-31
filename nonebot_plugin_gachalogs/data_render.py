@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import BytesIO
 from math import floor
-from time import localtime, strftime, time
+from time import localtime, strftime
 from typing import Dict, List, Literal, Tuple
 
 import matplotlib.pyplot as plt
@@ -557,7 +557,7 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
     * ``param uid: str`` 用户 UID
     - ``return: bytes`` 图片字节数据
     """
-    achievements = await calcAchievement(rawData)
+    scope, achievements = await calcAchievement(rawData)
     result = Image.new("RGBA", (720, 110 * len(achievements) + 10 + 100), "#f9f9f9")
     drawer = ImageDraw.Draw(result)
 
@@ -571,11 +571,9 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
         stroke_width=1,
         stroke_fill="grey",
     )
-    # TODO: 使用绘制成就时的最后一抽的时间
-    timeStr = strftime("%Y-%m-%d %H:%M:%S", localtime(int(time())))
     drawer.text(
-        (int((720 - fs(18, True).getlength(timeStr)) / 2), 70),
-        timeStr,
+        (int((720 - fs(18, True).getlength(scope)) / 2), 70),
+        scope,
         font=fs(18, True),
         fill="#808080",
     )
