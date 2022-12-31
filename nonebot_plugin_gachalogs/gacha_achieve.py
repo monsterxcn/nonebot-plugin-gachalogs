@@ -6,11 +6,13 @@ from typing import Dict, List, Tuple
 from pytz import timezone
 
 from nonebot.log import logger
+from nonebot.utils import run_sync
 
 from .__meta__ import GACHA_TYPE, POOL_INFO
 
 
-async def getLogsAnalysis(gachaLogs: Dict) -> Dict:
+@run_sync
+def getLogsAnalysis(gachaLogs: Dict) -> Dict:
     """获取抽卡记录分析数据"""
     analysis = {
         "all": {"5-角色": {}, "5-武器": {}, "4-角色": {}, "4-武器": {}, "3-武器": {}},  # 全物品出货统计
@@ -97,7 +99,8 @@ def mergeItemStr(items: List[str]) -> str:
     return "、".join(items[:3]) + ("等" if len(items) > 3 else "")
 
 
-async def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
+@run_sync
+def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
     """五星最欧最非成就"""
     if not len(fiveData):
         return []
@@ -138,7 +141,8 @@ async def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
     return achievements
 
 
-async def gachaNotExist(nullData: List[str]) -> List[Dict[str, str]]:
+@run_sync
+def gachaNotExist(nullData: List[str]) -> List[Dict[str, str]]:
     """未抽卡池成就"""
     achievements = []
 
@@ -154,7 +158,8 @@ async def gachaNotExist(nullData: List[str]) -> List[Dict[str, str]]:
     return achievements
 
 
-async def gachaWrongUp(fiveData: List[Dict]) -> List[Dict[str, str]]:
+@run_sync
+def gachaWrongUp(fiveData: List[Dict]) -> List[Dict[str, str]]:
     """角色活动祈愿限定 UP 成就"""
     _fiveData = [x for x in fiveData if x["pool"] == "301"]
     if not len(_fiveData):
@@ -186,7 +191,8 @@ async def gachaWrongUp(fiveData: List[Dict]) -> List[Dict[str, str]]:
     return achievements
 
 
-async def gachaMaxDay(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
+@run_sync
+def gachaMaxDay(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     """单日抽卡次数极多成就"""
     days, achievements = {}, []
     for timeStr, logs in logsData.items():
@@ -225,7 +231,8 @@ async def gachaMaxDay(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     return achievements
 
 
-async def gachaHamster(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
+@run_sync
+def gachaHamster(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     """未抽卡持续天数极长成就"""
     times = []
     for timeStr, logs in logsData.items():
@@ -259,7 +266,8 @@ async def gachaHamster(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     ]
 
 
-async def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
+@run_sync
+def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     """十连相关成就"""
     # 「单抽/十连出奇迹」在 LIMIT 抽内获取 5 星
     # 「N黄蛋！」在一次十连中，抽取到了 N 个五星
@@ -363,7 +371,8 @@ async def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]
     return achievements
 
 
-async def gachaMostChar(allData: Dict[str, Dict[str, int]]) -> List[Dict[str, str]]:
+@run_sync
+def gachaMostChar(allData: Dict[str, Dict[str, int]]) -> List[Dict[str, str]]:
     """获取最多角色成就"""
     achievements = []
     mostFive = dict(sorted(allData["5-角色"].items(), key=lambda x: x[1]))
