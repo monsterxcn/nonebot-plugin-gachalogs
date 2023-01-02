@@ -175,12 +175,12 @@ async def gachaAchievement(bot: Bot, event: MessageEvent, state: T_State):
     qq = event.get_user_id()
     # 读取配置数据
     cfg = await configHelper(qq)
-    if cfg.get("error"):
-        await aMatcher.finish(cfg["error"], at_sender=True)
+    if not cfg.get("logs"):
+        await aMatcher.finish(cfg.get("error", "请先使用一次「抽卡记录」命令！"), at_sender=True)
     # 生成抽卡成就
     uid, logs = await logsHelper(cfg["logs"])
     if not logs:
-        await aMatcher.finish()
+        await aMatcher.finish("没有抽卡记录可供分析哦~", at_sender=True)
     imgB64 = await gnrtGachaArchieve(logs, uid)
     await aMatcher.finish(MessageSegment.image(imgB64))
 
