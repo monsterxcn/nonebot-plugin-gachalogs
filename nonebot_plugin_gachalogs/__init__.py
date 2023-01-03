@@ -22,7 +22,7 @@ except ImportError:
 
 from .__meta__ import SAFE_GROUP
 from .data_export import gnrtGachaFile
-from .data_render import gnrtGachaInfo, gnrtGachaArchieve
+from .data_render import gnrtGachaArchieve, gnrtGachaInfo
 from .data_source import (
     checkAuthKey,
     configHelper,

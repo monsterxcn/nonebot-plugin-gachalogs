@@ -12,6 +12,7 @@ from typing import Dict, List, Literal, Tuple, Union
 from urllib import parse
 
 from httpx import AsyncClient
+
 from nonebot.log import logger
 
 from .__meta__ import (

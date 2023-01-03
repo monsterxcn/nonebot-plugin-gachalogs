@@ -8,8 +8,9 @@ from time import localtime, strftime, time
 from traceback import format_exc
 from typing import Dict, Generator, List, Literal
 
-from nonebot.log import logger
 from xlsxwriter import Workbook
+
+from nonebot.log import logger
 
 from .__meta__ import GACHA_TYPE, GACHA_TYPE_FULL, LOCAL_DIR
 from .data_source import logsHelper
