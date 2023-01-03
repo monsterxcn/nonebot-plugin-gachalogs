@@ -7,18 +7,20 @@ from typing import Dict, List, Literal, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
-from nonebot.log import logger
 from PIL import Image, ImageDraw, ImageFont
 from pytz import timezone
 
+from nonebot.log import logger
+from nonebot.utils import run_sync
+
 from .__meta__ import (
+    ACHIEVE_BG,
+    ACHIEVE_BG_DETAIL,
+    ACHIEVE_FONT,
     GACHA_TYPE,
     PIE_FONT,
     PIL_FONT,
     POOL_INFO,
-    ACHIEVE_FONT,
-    ACHIEVE_BG,
-    ACHIEVE_BG_DETAIL,
 )
 from .gacha_achieve import calcAchievement
 
@@ -89,7 +91,8 @@ def fs(size: int, achieve: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(ACHIEVE_FONT if achieve else PIL_FONT), size=size)
 
 
-async def colorfulFive(
+@run_sync
+def colorfulFive(
     star5Data: List, fontSize: int, maxWidth: int, isWeapon: bool = False
 ) -> Image.Image:
     """
@@ -220,7 +223,8 @@ async def colorfulFive(
     return result
 
 
-async def calcStat(gachaLogs: Dict) -> Dict:
+@run_sync
+def calcStat(gachaLogs: Dict) -> Dict:
     """
     统计数据提取
 
@@ -312,7 +316,8 @@ async def calcStat(gachaLogs: Dict) -> Dict:
     return stat
 
 
-async def drawPie(stat: Dict) -> Tuple[Image.Image, bool]:
+@run_sync
+def drawPie(stat: Dict) -> Tuple[Image.Image, bool]:
     """
     单个饼图绘制
 
@@ -624,18 +629,40 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
         )
         # 详情
         if achievement.get("value"):
-            drawer.text(
-                (
-                    int(582 + (128 - fs(20, True).getlength(achievement["value"])) / 2),
-                    int(
-                        startHeight
-                        + (100 - fs(20, True).getbbox(achievement["value"])[-1]) / 2
+            hasAchieve = achievement["achievedTime"] not in ["小保底歪的概率", "持续时间"]
+            if hasAchieve:
+                # 绘制 达成
+                drawer.text(
+                    (
+                        int(582 + (128 - fs(20, True).getlength("达成")) / 2),
+                        int(
+                            startHeight
+                            - (5 if achievement["value"] == "达成" else 20)
+                            + (100 - fs(20, True).getbbox("达成")[-1]) / 2
+                        ),
                     ),
-                ),
-                achievement["value"],
-                font=fs(20, True),
-                fill="#988B81",
-            )
+                    "达成",
+                    font=fs(20, True),
+                    fill="#988B81",
+                )
+            if achievement["value"] != "达成":
+                # 绘制 总计 等数据
+                drawer.text(
+                    (
+                        int(
+                            582 + (128 - fs(20, True).getlength(achievement["value"])) / 2
+                        ),
+                        int(
+                            startHeight
+                            + (5 if hasAchieve else 0)
+                            + (100 - fs(20, True).getbbox(achievement["value"])[-1]) / 2
+                        ),
+                    ),
+                    achievement["value"],
+                    font=fs(20, True),
+                    fill="#84603D",
+                )
+            # 绘制 时间 等数据
             drawer.text(
                 (
                     int(
@@ -645,7 +672,7 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
                     int(
                         startHeight
                         + 76
-                        + (20 - fs(15, True).getbbox(achievement["value"])[-1]) / 2
+                        + (20 - fs(15, True).getbbox(achievement["achievedTime"])[-1]) / 2
                     ),
                 ),
                 achievement["achievedTime"],

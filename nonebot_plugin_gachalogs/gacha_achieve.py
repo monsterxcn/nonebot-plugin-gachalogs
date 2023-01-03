@@ -96,7 +96,8 @@ def getLogsAnalysis(gachaLogs: Dict) -> Dict:
 
 def mergeItemStr(items: List[str]) -> str:
     """合并出货记录消息，最多显示三个物品"""
-    return "、".join(items[:3]) + ("等" if len(items) > 3 else "")
+    _items = [f"「{k}」{f'×{v}' if v > 1 else ''}" for k, v in Counter(items).items()]
+    return "、".join(_items[:3]) + ("等" if len(_items) > 3 else "")
 
 
 @run_sync
@@ -106,18 +107,19 @@ def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
         return []
     achievements = []
 
-    _fiveData = sorted(fiveData, key=lambda x: x["pity"])
+    _fiveData = sorted(
+        fiveData,
+        key=lambda x: (x["pity"], datetime.strptime(x["time"], "%Y-%m-%d")),
+    )
     minPityItem, maxPityItem = _fiveData[0], _fiveData[-1]
     if minPityItem["pity"] <= 30:
-        _items = mergeItemStr(
-            [f"「{d['name']}」" for d in fiveData if d["pity"] == minPityItem["pity"]]
-        )
+        _results = [d["name"] for d in fiveData if d["pity"] == minPityItem["pity"]]
         achievements.append(
             {
                 "title": "「欧皇时刻」",
-                "info": f"只抽了 {minPityItem['pity']} 次就抽到了{_items}{'，你的欧气无人能敌！' if minPityItem['pity'] <= 5 else ''}",
-                "achievedTime": minPityItem["time"],
-                "value": str(minPityItem["pity"]),
+                "info": f"只抽了 {minPityItem['pity']} 次就抽到了{mergeItemStr(_results)}{'，你的欧气无人能敌！' if minPityItem['pity'] <= 5 else ''}",
+                "achievedTime": minPityItem["time"].replace("-", "/"),
+                "value": "达成" if len(_results) == 1 else f"总计 {len(_results)}",
             }
         )
     if maxPityItem["pity"] >= 30:
@@ -126,15 +128,13 @@ def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
             if 83 < maxPityItem["pity"] < 89
             else "无穷"
         )
-        _items = mergeItemStr(
-            [f"「{d['name']}」" for d in fiveData if d["pity"] == maxPityItem["pity"]]
-        )
+        _results = [d["name"] for d in fiveData if d["pity"] == maxPityItem["pity"]]
         achievements.append(
             {
                 "title": "「原来非酋竟是我自己」",
-                "info": f"抽了 {maxPityItem['pity']} 次才最终抽到了{_items}{f'，你竟是{_rarity}里挑一的非酋！' if minPityItem['pity'] >= 84 else ''}",
-                "achievedTime": maxPityItem["time"],
-                "value": str(maxPityItem["pity"]),
+                "info": f"抽了 {maxPityItem['pity']} 次才最终抽到了{mergeItemStr(_results)}{f'，你竟是{_rarity}里挑一的非酋！' if minPityItem['pity'] >= 84 else ''}",
+                "achievedTime": maxPityItem["time"].replace("-", "/"),
+                "value": "达成" if len(_results) == 1 else f"总计 {len(_results)}",
             }
         )
 
@@ -205,26 +205,24 @@ def gachaMaxDay(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
 
     days = dict(sorted(days.items(), key=lambda x: x[1]["count"]))
     dayIdx = list(days.keys())[-1]
+    dayDisplay = dayIdx.replace("-", "/")
     if not days[dayIdx]["five"]:
         achievements.append(
             {
                 "title": "「最黑暗的一天」",
-                "info": f"在 {dayIdx} 这一天，你共抽取了 {days[dayIdx]['count']} 次，然而并没有出金",
-                "achievedTime": dayIdx,
-                "value": str(days[dayIdx]["count"]),
+                "info": f"在 {dayDisplay} 这一天，你共抽取了 {days[dayIdx]['count']} 次，然而并没有出金",
+                "achievedTime": dayDisplay,
+                "value": "达成",
             }
         )
     else:
-        _five = [f"「{i['name']}」" for i in days[dayIdx]["five"]]
-        _items = mergeItemStr(
-            [f"{k}{f'×{v}' if v > 1 else ''}" for k, v in Counter(_five).items()]
-        )
+        _five = [i["name"] for i in days[dayIdx]["five"]]
         achievements.append(
             {
                 "title": "「豪掷千金」",
-                "info": f"在 {dayIdx} 这一天，你共抽取了 {days[dayIdx]['count']} 次。在抽到{_items}时，你有没有很开心呢？",
-                "achievedTime": dayIdx,
-                "value": str(days[dayIdx]["count"]),
+                "info": f"在 {dayDisplay} 这一天，你共抽取了 {days[dayIdx]['count']} 次。在抽到{mergeItemStr(_five)}时，你有没有很开心呢？",
+                "achievedTime": dayDisplay,
+                "value": "达成",
             }
         )
 
@@ -244,7 +242,7 @@ def gachaHamster(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     # 计算最大差值、起点和终点
     diff, start, end = max((b - a, a, b) for a, b in zip(datetimes, datetimes[1:]))
     # 格式化字符串
-    fromTo = f"{start:%Y-%m-%d} 到 {end:%Y-%m-%d}"
+    fromTo = f"{start:%Y/%m/%d} 到 {end:%Y/%m/%d}"
     duration = f"{diff.days} 天 {diff.seconds // 3600} 时"
 
     if diff.days <= 15:
@@ -269,14 +267,12 @@ def gachaHamster(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
 @run_sync
 def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
     """十连相关成就"""
-    # 「单抽/十连出奇迹」在 LIMIT 抽内获取 5 星
+    # 「单抽/十连出奇迹」在 LIMIT 抽内获取五星
     # 「N黄蛋！」在一次十连中，抽取到了 N 个五星
-    # 「四叶草」在一次十连中，抽取到 4 个或以上的 4 星或 5 星
-    # 「福至五彩」在一次十连中，抽取到 5 个或以上的 4 星或 5 星
+    # 「四叶草」在一次十连中，抽取到 4 个或以上的四或五星
     # 「这才是角色池！」在一次十连中，抽出的角色不少于武器
     achievements = []
-    miracle, yolk, realChar = {"single": 0, "ten": 0}, {}, {}
-    fourCounter, fiveCounter = 0, 0
+    miracle, yolk, realChar, manyGood = {"single": 0, "ten": 0}, {}, {}, {}
     miracleLimit, miraclePct = 40, 0.3
 
     for timeStr, logs in logsData.items():
@@ -295,16 +291,20 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
             )
             # 「N黄蛋！」
             if _fiveCnt > 1:
-                yolk[str(_fiveCnt)] = yolk.get(str(_fiveCnt), 0) + 1
+                yolk[str(_fiveCnt)] = {
+                    "count": yolk.get(str(_fiveCnt), {}).get("count", 0) + 1,
+                    "first": yolk.get(str(_fiveCnt), {}).get("first") or timeStr,
+                }
             # 「这才是角色池！」
             if _charCnt >= 5:
                 realChar[timeStr] = _charCnt
-            # 「福至五彩」
-            if _fiveCnt + _fourCnt >= 5:
-                fiveCounter += 1
-            # 「四叶草」
+            # 「四叶草」「福至五彩」等
             elif _fiveCnt + _fourCnt >= 4:
-                fourCounter += 1
+                manyGoodKey = str(_fiveCnt + _fourCnt)
+                manyGood[manyGoodKey] = {
+                    "count": manyGood.get(manyGoodKey, {}).get("count", 0) + 1,
+                    "first": manyGood.get(manyGoodKey, {}).get("first") or timeStr,
+                }
 
     if miracle["single"] + miracle["ten"]:
         _str = "、".join(
@@ -312,7 +312,7 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
         )
         _achievement = {
             "title": "「单抽出奇迹？」",
-            "info": f"在 {miracleLimit} 抽内获取 5 星共计 {miracle['single'] + miracle['ten']} 次，其中{_str}",
+            "info": f"在 {miracleLimit} 抽内获取五星共计 {miracle['single'] + miracle['ten']} 次，其中{_str}",
         }
         if miracle["ten"] and miracle["single"] / miracle["ten"] < miraclePct:
             _achievement["title"] = "「十连出奇迹！」"
@@ -326,32 +326,26 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
             [
                 {
                     "title": f"「{_map[int(k) - 2]}黄蛋！」",
-                    "info": f"在一次十连中，你抽取到了 {k} 只五星{'，你就是极致的欧皇！' if int(k) > 2 else ''}",
-                    "achievedTime": "达成次数",
-                    "value": f"{v}",
+                    "info": f"在一次十连中，你抽取到了 {k} 个五星{'，你就是极致的欧皇！' if int(k) > 2 else ''}",
+                    "achievedTime": v["first"].split()[0].replace("-", "/"),
+                    "value": "达成" if v["count"] == 1 else f"总计 {v['count']}",
                 }
                 for k, v in yolk.items()
             ]
         )
 
-    if fourCounter:
-        achievements.append(
-            {
-                "title": "「四叶草」",
-                "info": "在一次十连中，抽取到 4 个或以上的 4 星或 5 星",
-                "achievedTime": "达成次数",
-                "value": f"{fourCounter}",
-            }
-        )
-
-    if fiveCounter:
-        achievements.append(
-            {
-                "title": "「福至五彩」",
-                "info": "在一次十连中，抽取到 5 个或以上的 4 星或 5 星",
-                "achievedTime": "达成次数",
-                "value": f"{fiveCounter}",
-            }
+    if manyGood:
+        _map = ["四叶草", "福至五彩", "六六顺意", "七星高照", "八方鸿运", "九九同心", "十全十美"]
+        achievements.extend(
+            [
+                {
+                    "title": f"「{_map[int(k) - 4]}」",
+                    "info": f"在一次十连中，你抽取到了 {k} 个四星或五星{'，这何尝不是另类的欧皇！' if int(k) > 4 else ''}",
+                    "achievedTime": v["first"].split()[0].replace("-", "/"),
+                    "value": "达成" if v["count"] == 1 else f"总计 {v['count']}",
+                }
+                for k, v in manyGood.items()
+            ]
         )
 
     if realChar:
@@ -359,12 +353,10 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
             {
                 "title": "「这才是角色池！」",
                 "info": "在一次十连中，抽出的角色不少于武器",
-                "achievedTime": "达成次数"
+                "achievedTime": list(realChar.keys())[0].split()[0].replace("-", "/"),
+                "value": f"总计 {len(realChar.keys())}"
                 if len(realChar.keys()) > 1
-                else list(realChar.keys())[0].split()[0],
-                "value": f"{len(realChar.keys())}"
-                if len(realChar.keys()) > 1
-                else f"角色：{list(realChar.values())[0]}",
+                else f"角色 {list(realChar.values())[0]}",
             }
         )
 
@@ -379,24 +371,22 @@ def gachaMostChar(allData: Dict[str, Dict[str, int]]) -> List[Dict[str, str]]:
     mostFour = dict(sorted(allData["4-角色"].items(), key=lambda x: x[1]))
     if mostFive and mostFive[list(mostFive.keys())[-1]] > 1:
         count = mostFive[list(mostFive.keys())[-1]]
-        names = mergeItemStr(
-            [f"「{n}」×{count}" for n in [k for k, v in mostFive.items() if v == count]]
-        )
+        names = [k for k, v in mostFive.items() if v == count for _ in range(v)]
+        multi = "他们" if len(Counter(names).keys()) > 1 else " ta "
         achievements.append(
             {
                 "title": "「情有独钟(五星角色)」",
-                "info": f"你共抽取了{names}，这是上天对你的眷顾还是你对{'他们' if '、' in names else ' ta '}的情有独钟呢？",
+                "info": f"你共抽取了{mergeItemStr(names)}，这是上天对你的眷顾还是你对{multi}的情有独钟呢？",
             }
         )
     if mostFour and mostFour[list(mostFour.keys())[-1]] > 1:
         count = mostFour[list(mostFour.keys())[-1]]
-        names = mergeItemStr(
-            [f"「{n}」×{count}" for n in [k for k, v in mostFour.items() if v == count]]
-        )
+        names = [k for k, v in mostFour.items() if v == count for _ in range(v)]
+        multi = "他们" if len(Counter(names).keys()) > 1 else " ta "
         achievements.append(
             {
                 "title": "「情有独钟(四星角色)」",
-                "info": f"你共抽取了{names}，这是上天对你的眷顾还是你对{'他们' if '、' in names else ' ta '}的情有独钟呢？",
+                "info": f"你共抽取了{mergeItemStr(names)}，这是上天对你的眷顾还是你对{multi}的情有独钟呢？",
             }
         )
 
