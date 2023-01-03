@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nonebot-plugin-gachalogs"
-version = "0.2.5"
+version = "0.2.6"
 description = "Genshin gacha history analysis plugin for NoneBot2"
 authors = ["monsterxcn <monsterxcn@gmail.com>"]
 documentation = "https://github.com/monsterxcn/nonebot-plugin-gachalogs#readme"

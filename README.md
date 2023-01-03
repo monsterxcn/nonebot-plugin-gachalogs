@@ -21,7 +21,7 @@
 </p></br>
 
 
-| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/198547014-469865b5-a298-4b91-beb2-645e028a4721.PNG) | ![成就示意图](https://user-images.githubusercontent.com/22407052/210123003-541b2fb7-cd52-44e5-a0cd-23fc93fae7aa.png) |
+| ![祈愿统计图](https://user-images.githubusercontent.com/22407052/198547014-469865b5-a298-4b91-beb2-645e028a4721.PNG) | ![成就示意图](https://user-images.githubusercontent.com/22407052/210336667-ecb56bcb-42dc-4235-ab17-1e30bea04362.PNG) |
 |:--:|:--:|
 
 
