@@ -7,11 +7,10 @@ from typing import Dict, List, Literal, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
-from PIL import Image, ImageDraw, ImageFont
-from pytz import timezone
-
 from nonebot.log import logger
 from nonebot.utils import run_sync
+from PIL import Image, ImageDraw, ImageFont
+from pytz import timezone
 
 from .__meta__ import (
     ACHIEVE_BG,
@@ -86,6 +85,7 @@ def fs(size: int, achieve: bool = False) -> ImageFont.FreeTypeFont:
     Pillow 绘制字体设置
 
     * ``param size: int`` 字体大小
+    * ``param achieve: bool = False`` 是否为抽卡成就绘图（成就绘图建议使用原神字体）
     - ``return: ImageFont.FreeTypeFont`` Pillow 字体对象
     """
     return ImageFont.truetype(str(ACHIEVE_FONT if achieve else PIL_FONT), size=size)

@@ -1,5 +1,4 @@
 from pathlib import Path
-from traceback import format_exc
 from typing import Dict
 
 from nonebot import on_command, on_notice
@@ -240,8 +239,8 @@ async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
                 name=locFile.name,
             )
         locFile.unlink()
-    except ActionFailed:
-        logger.error(f"QQ{qq} 导出文件 {fileInfo['path']} 发送出错 {format_exc()}")
+    except ActionFailed as e:
+        logger.opt(exception=e).error(f"QQ{qq} 导出文件 {fileInfo['path']} 发送出错")
         await eMatcher.finish("导不出来，因为文件发送出错辣..", at_sender=True)
 
 

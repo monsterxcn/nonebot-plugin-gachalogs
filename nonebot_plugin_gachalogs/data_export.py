@@ -5,12 +5,10 @@
 import json
 from pathlib import Path
 from time import localtime, strftime, time
-from traceback import format_exc
 from typing import Dict, Generator, List, Literal
 
-from xlsxwriter import Workbook
-
 from nonebot.log import logger
+from xlsxwriter import Workbook
 
 from .__meta__ import GACHA_TYPE, GACHA_TYPE_FULL, LOCAL_DIR
 from .data_source import logsHelper
@@ -69,7 +67,7 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> Path:
     * ``param uid: str`` 抽卡记录所属 UID
     * ``param gachaLogs: dict`` 原始请求结果
     * ``param uigfList: list`` UIGF 格式数据，由 ``transUIGF()`` 生成
-    - ``return: str`` XLSX 文件路径
+    - ``return: Path`` XLSX 文件路径
     """
     exportTime = strftime("%Y%m%d%H%M%S", localtime())
     wbPath = LOCAL_DIR / f"Wish-{uid}-{exportTime}.xlsx"
@@ -195,7 +193,7 @@ async def gnrtGachaFile(config: Dict, outFormat: Literal["xlsx", "json"]) -> Dic
 
     * ``param config: Dict`` 配置文件
     * ``param outFormat: Literal["xlsx", "json"]`` 导出格式
-    * ``return: Dict`` 导出结果，出错时返回 ``{"error": "错误信息"}``
+    - ``return: Dict`` 导出结果，出错时返回 ``{"error": "错误信息"}``
     """
     # 无抽卡记录数据直接返回
     if not config.get("logs"):
@@ -218,5 +216,5 @@ async def gnrtGachaFile(config: Dict, outFormat: Literal["xlsx", "json"]) -> Dic
                 json.dump(uigfData, f, ensure_ascii=False, indent=2)
             return {"msg": "导出抽卡记录 JSON(UIGF) 完成！", "path": uigfPath}
     except Exception as e:
-        logger.error(f"导出抽卡记录失败 {e.__class__.__name__}\n{format_exc()}")
+        logger.opt(exception=e).error("导出抽卡记录失败")
         return {"error": f"因为 {e.__class__.__name__} 导出失败了.."}
