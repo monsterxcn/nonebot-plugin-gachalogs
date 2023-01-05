@@ -1,7 +1,7 @@
 <h1 align="center">NoneBot Plugin GachaLogs</h1></br>
 
 
-<p align="center">🤖 用于统计及导出原神祈愿记录的 NoneBot2 插件</p></br>
+<p align="center">🤖 用于分析与管理原神祈愿记录的 NoneBot2 插件</p></br>
 
 
 <p align="center"><b>现已支持祈愿历史记录链接自动更新！</b></p></br>
@@ -135,4 +135,4 @@ python -m pip install nonebot-plugin-gachalogs
 ## 特别鸣谢
 
 
-[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | **[@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export)** | [@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer) | [@vikiboss/genshin-helper](https://github.com/vikiboss/genshin-helper) | [@DGP-Studio/Snap.Metadata](https://github.com/DGP-Studio/Snap.Metadata)
+[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | **[@sunfkny/genshin-gacha-export](https://github.com/sunfkny/genshin-gacha-export)** | **[@voderl/genshin-gacha-analyzer](https://github.com/voderl/genshin-gacha-analyzer)** | [@vikiboss/genshin-helper](https://github.com/vikiboss/genshin-helper) | [@DGP-Studio/Snap.Metadata](https://github.com/DGP-Studio/Snap.Metadata)

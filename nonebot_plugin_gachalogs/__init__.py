@@ -36,12 +36,13 @@ async def _OFFLINE_FILE(bot: "rBot", event: "rEvent") -> bool:
     if isinstance(event, NoticeEvent):
         if event.notice_type in ["offline_file", "group_upload"]:  # type: ignore
             if hasattr(event, "user_id") and hasattr(event, "file"):
-                # 响应 5M 及以下符合规则的 JSON、XLSX、BAK 文件
-                filename = str(event.file.name).lower()  # type: ignore
-                if any(filename.endswith(t) for t in ["json", "xlsx"]) or (
+                file = dict(event.file)  # type: ignore
+                filename = file["name"].lower()
+                # 响应 5M 及以下符合规则的 JSON、BAK 文件
+                if filename.endswith("json") or (
                     filename.startswith("gachalogs-") and filename.endswith(".bak")
                 ):
-                    return int(event.file.size) <= 5 * 1024 * 1024  # type: ignore
+                    return int(file["size"]) <= 5 * 1024 * 1024
     return False
 
 
