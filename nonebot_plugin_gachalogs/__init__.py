@@ -21,6 +21,7 @@ except ImportError:
 
 from .__meta__ import SAFE_GROUP
 from .data_export import gnrtGachaFile
+from .data_import import importGachaFile
 from .data_render import gnrtGachaArchieve, gnrtGachaInfo
 from .data_source import (
     checkAuthKey,
@@ -33,13 +34,14 @@ from .data_source import (
 
 async def _OFFLINE_FILE(bot: "rBot", event: "rEvent") -> bool:
     if isinstance(event, NoticeEvent):
-        if event.notice_type == "offline_file":  # type: ignore
+        if event.notice_type in ["offline_file", "group_upload"]:  # type: ignore
             if hasattr(event, "user_id") and hasattr(event, "file"):
-                filename = str(event.file.get("name", "")).lower()  # type: ignore
+                # 响应 5M 及以下符合规则的 JSON、XLSX、BAK 文件
+                filename = str(event.file.name).lower()  # type: ignore
                 if any(filename.endswith(t) for t in ["json", "xlsx"]) or (
-                    filename.startswith("gachalogs-") and filename.endswith(".json.bak")
+                    filename.startswith("gachalogs-") and filename.endswith(".bak")
                 ):
-                    return True
+                    return int(event.file.size) <= 5 * 1024 * 1024  # type: ignore
     return False
 
 
@@ -302,18 +304,28 @@ async def gachaDelete(bot: Bot, event: MessageEvent, state: T_State):
 
 @fMatcher.handle()
 async def gotFile(bot: Bot, event: NoticeEvent, state: T_State):
-    # [notice.offline_file]: {
-    #     'time': 1661966162,
-    #     'self_id': BOT_QQ,
-    #     'post_type': 'notice',
-    #     'notice_type': 'offline_file',
-    #     'file': {
-    #         'name': 'name.format',
-    #         'size': 10127,
-    #         'url': 'http://xxx.xx.xx.xxx/ftn_handler/73...a41c257b1'
-    #     },
-    #     'user_id': SENDER_QQ
-    # }
-    sender: int = event.user_id  # type: ignore
-    fileInfo: Dict = event.file  # type: ignore
-    logger.info(f"{sender} 发送了抽卡记录文件 {fileInfo}")
+    sender = str(event.user_id)  # type: ignore
+    fileData = dict(event.file)  # type: ignore
+    logger.info(f"{sender} 发送了抽卡记录文件 {fileData}")
+
+    importRes = await importGachaFile(sender, fileData, bot.config.superusers)
+    # 发送旧的本地文件给用户备份
+    if importRes.get("bak"):
+        # 尝试发送文件
+        locFile = Path(str(importRes["bak"]))
+        try:
+            await bot.upload_private_file(
+                user_id=int(sender),
+                file=str(locFile.resolve()),
+                name=locFile.name,
+            )
+            locFile.unlink()
+        except ActionFailed as e:
+            logger.opt(exception=e).error(f"QQ{sender} 备份文件 {locFile.name} 发送出错")
+            await fMatcher.send(f"QQ{sender} 备份文件未能成功发送，已保留在服务器内", at_sender=True)
+
+    if importRes.get("error") or not importRes.get("msg"):
+        await fMatcher.finish(str(importRes.get("error")) or "导入发生异常！")
+    await fMatcher.send(str(importRes["msg"]))
+    if importRes.get("img"):
+        await mainMatcher.finish(MessageSegment.image(importRes["img"]))

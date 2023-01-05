@@ -11,7 +11,6 @@ from typing import Dict, List, Literal, Tuple, Union
 from urllib import parse
 
 from httpx import AsyncClient
-
 from nonebot.log import logger
 
 from .__meta__ import (
@@ -36,7 +35,7 @@ def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
 
     * ``param input: str`` 输入内容
     * ``param find: Literal["url", "cookie"]`` 提取内容类型
-    - ``return: str`` 提取结果，格式为 ``{"url": "链接"}`` 或 ``{"login_ticket": "xx", "stoken": "xx", ...}``，出错时返回 ``{}``
+    - ``return: Dict`` 提取结果，格式为 ``{"url": "链接"}`` 或 ``{"login_ticket": "xx", "stoken": "xx", ...}``，出错时返回 ``{}``
     """
     if find == "cookie":
         if not input:
@@ -86,7 +85,7 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
     """
     配置缓存助手，既可根据 QQ 读取配置，也可根据数据写入/删除配置缓存
 
-    * ``param qq: str`` 目标 QQ
+    * ``param qq: str`` 目标 QQ，为 ``"0"`` 时返回全部配置
     * ``param data: Dict = {}`` 配置数据，根据是否传入决定更新或读取，只有配置中有链接、Cookie 或抽卡记录缓存 或 配置中包含 force/delete 参数时才写入
     - ``return: Dict`` 目标 QQ 的配置数据，删除时返回 ``{}``，出错时返回 ``{"error": "错误信息"}``
     """
@@ -130,7 +129,7 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
             logger.opt(exception=e).error(f"QQ{qq} 的配置缓存{modeStr}失败")
             return {"error": f"QQ{qq} 的配置缓存{modeStr}失败！"}
     else:
-        return cfg.get(qq, {"error": f"暂无 QQ{qq} 的抽卡记录配置！"})
+        return cfg if qq == "0" else cfg.get(qq, {"error": f"暂无 QQ{qq} 的抽卡记录配置！"})
 
 
 async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict]:
@@ -421,7 +420,7 @@ async def getSingleTypeLogs(logUrl: str, gachaType: str) -> List:
 
     * ``param logUrl: str`` 抽卡记录链接
     * ``param gachaType: str`` 祈愿类型，实际类型应为 ``Literal["100", "200", "301", "302"]``
-    * ``return: List`` 指定类型抽卡记录
+    - ``return: List`` 指定类型抽卡记录
     """
     logsList, endId, page = [], 0, 1
     async with AsyncClient() as client:
@@ -455,7 +454,7 @@ async def getAllTypeLogs(logUrl: str) -> Dict:
     全部抽卡记录获取，可根据输入的抽卡记录链接获取 6 个月内全部抽卡记录
 
     * ``param logUrl: str`` 抽卡记录链接
-    * ``return: Dict`` 全部抽卡记录，格式为``{"msg": "uid 或错误信息", "logs": {}]``
+    - ``return: Dict`` 全部抽卡记录，格式为``{"msg": "uid 或错误信息", "logs": {}]``
     """
     start, uidGot, newLogs = time(), "", {}
     # 获取最新抽卡记录
