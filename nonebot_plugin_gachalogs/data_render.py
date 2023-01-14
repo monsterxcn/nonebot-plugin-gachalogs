@@ -589,14 +589,7 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
         startHeight = 110 * (aIdx + 1)
         bg = bgDetail if achievement.get("value") else bgPure
         result.paste(bg, (10, startHeight), bg)
-        # 名称
-        drawer.text(
-            (115, startHeight + 18),
-            achievement["title"],
-            font=fs(22, True),
-            fill="#585757",
-        )
-        # 描述
+        # 描述分行，超过三行需要调整后面 名称 描述 绘制位置
         multilineText, tmpText, tmpLength = [], "", 0
         maxLength = 445 if achievement.get("value") else 565
         for s in achievement["info"]:
@@ -611,13 +604,23 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
         if tmpText.strip():
             multilineText.append(tmpText)
         multilineText = [s.strip() for s in multilineText if s.strip()]
-        spacing = (0.3 if len(multilineText) < 3 else 0.1) * 16
+        tooMany = len(multilineText) >= 3
+        # 名称
+        drawer.text(
+            (115, startHeight + 18 - (11 if tooMany else 0)),
+            achievement["title"],
+            font=fs(22, True),
+            fill="#585757",
+        )
+        # 描述
+        spacing = (0.3 if tooMany else 0.1) * 16
         drawer.multiline_text(
             (
                 125,
                 startHeight
                 + 100
                 - 18
+                + (11 if tooMany else 0)
                 - 16 * len(multilineText)
                 - spacing * (len(multilineText) - 1),
             ),
@@ -650,7 +653,8 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
                 drawer.text(
                     (
                         int(
-                            582 + (128 - fs(20, True).getlength(achievement["value"])) / 2
+                            582
+                            + (128 - fs(20, True).getlength(achievement["value"])) / 2
                         ),
                         int(
                             startHeight
@@ -667,12 +671,14 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
                 (
                     int(
                         582
-                        + (128 - fs(15, True).getlength(achievement["achievedTime"])) / 2
+                        + (128 - fs(15, True).getlength(achievement["achievedTime"]))
+                        / 2
                     ),
                     int(
                         startHeight
                         + 76
-                        + (20 - fs(15, True).getbbox(achievement["achievedTime"])[-1]) / 2
+                        + (20 - fs(15, True).getbbox(achievement["achievedTime"])[-1])
+                        / 2
                     ),
                 ),
                 achievement["achievedTime"],
