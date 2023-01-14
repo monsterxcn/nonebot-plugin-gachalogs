@@ -1,27 +1,27 @@
-from copy import deepcopy
-from datetime import datetime
 from io import BytesIO
 from math import floor
-from time import localtime, strftime
-from typing import Dict, List, Literal, Tuple
+from copy import deepcopy
+from datetime import datetime
+from time import strftime, localtime
+from typing import Dict, List, Tuple, Literal
 
+from pytz import timezone
 import matplotlib.pyplot as plt
-from matplotlib import font_manager as fm
 from nonebot.log import logger
 from nonebot.utils import run_sync
+from matplotlib import font_manager as fm
 from PIL import Image, ImageDraw, ImageFont
-from pytz import timezone
 
+from .gacha_achieve import calcAchievement
 from .__meta__ import (
-    ACHIEVE_BG,
-    ACHIEVE_BG_DETAIL,
-    ACHIEVE_FONT,
-    GACHA_TYPE,
     PIE_FONT,
     PIL_FONT,
     POOL_INFO,
+    ACHIEVE_BG,
+    GACHA_TYPE,
+    ACHIEVE_FONT,
+    ACHIEVE_BG_DETAIL,
 )
-from .gacha_achieve import calcAchievement
 
 
 def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
@@ -33,7 +33,8 @@ def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
     * ``param b: int`` 基准值
     * ``param rt: Literal["pct", "rgb"] = "pct"`` 返回类型，默认返回概率百分数字符串
     - ``return: str`` 概率百分数字符串（格式为 ``23.33%``）或根据概率生成的 RGB 颜色（格式为 ``#FFFFFF``）
-    """
+    """  # noqa: E501
+
     if rt == "pct":
         return str(round(a / b * 100, 2)) + "%"
     # 由概率生成 RGB 颜色
@@ -54,7 +55,7 @@ def percent(a: int, b: int, rt: Literal["pct", "rgb"] = "pct") -> str:
             clR = floor(lowPct * prevCl["r"] + upPct * nowCl["r"])
             clG = floor(lowPct * prevCl["g"] + upPct * nowCl["g"])
             clB = floor(lowPct * prevCl["b"] + upPct * nowCl["b"])
-            return "#{:02X}{:02X}{:02X}".format(clR, clG, clB)
+            return f"#{clR:02X}{clG:02X}{clB:02X}"
             # return "rgb({},{},{})".format(clR, clG, clB)
     return "#FF5652"
 
@@ -66,7 +67,8 @@ def getPoolTag(num: int) -> Tuple[str, str, str]:
 
     * ``param num: int`` 卡池五星平均抽数
     - ``return: Tuple[str, str, str]`` 卡池运势、字体背景色、字体边缘色
-    """
+    """  # noqa: E501
+
     if num == 0:
         return "无", "#759abf", "#4d8ccb"
     if num >= 72:
@@ -88,6 +90,7 @@ def fs(size: int, achieve: bool = False) -> ImageFont.FreeTypeFont:
     * ``param achieve: bool = False`` 是否为抽卡成就绘图（成就绘图建议使用原神字体）
     - ``return: ImageFont.FreeTypeFont`` Pillow 字体对象
     """
+
     return ImageFont.truetype(str(ACHIEVE_FONT if achieve else PIL_FONT), size=size)
 
 
@@ -104,6 +107,7 @@ def colorfulFive(
     * ``param isWeapon: bool = False`` 是否为武器祈愿活动
     - ``return: Image.Image`` Pillow 图片对象
     """
+
     ImageSize = (maxWidth, 1000)
     coordX, coordY = 0, 0  # 绘制坐标
     fontPadding = 10  # 字体行间距
@@ -133,7 +137,9 @@ def colorfulFive(
                     stroke_fill=color,
                 )
                 # 偏移 X 轴绘制坐标使物品名称与自己的抽数间隔 1/4 个空格、抽数与下一个物品名称间隔一个空格
-                coordX += (wordW + spaceW) if word[0] == "[" else int(wordW + spaceW / 4)
+                coordX += (
+                    (wordW + spaceW) if word[0] == "[" else int(wordW + spaceW / 4)
+                )
             elif word[0] == "[":
                 # 当前行绘制超过最大宽度限制，且当前绘制为抽数，换行绘制（保证 [ 与数字不分离）
                 coordX, coordY = 0, (coordY + stepY)  # 偏移绘制坐标至下行行首
@@ -231,6 +237,7 @@ def calcStat(gachaLogs: Dict) -> Dict:
     * ``param gachaLogs: Dict`` 原始抽卡记录数据
     - ``return: Dict`` 统计数据
     """
+
     single = {
         "total": 0,  # 总抽数
         "cntNot5": 0,  # 未出五星抽数
@@ -251,7 +258,7 @@ def calcStat(gachaLogs: Dict) -> Dict:
             continue
         gachaStat = deepcopy(single)
         gachaList = gachaLogs[banner]
-        gachaList.reverse()  # 千万不可以 gachaList.sort(key=lambda item: item["time"], reverse=False)
+        gachaList.reverse()
         counter, pityCounter = 0, 0  # 总抽数计数器、保底计数器
         upCounter = {}  # UP 物品计数器
         for item in gachaList:
@@ -324,6 +331,7 @@ def drawPie(stat: Dict) -> Tuple[Image.Image, bool]:
     * ``param stat: Dict`` 统计数据，由 ``calcStat()`` 生成
     - ``return: Tuple[Image.Image, bool]`` 返回饼图、是否展示三星物品数据
     """
+
     partMap = [
         {"label": "三星武器", "color": "#73c0de", "total": stat["cntStar3"]},
         {"label": "四星武器", "color": "#91cc75", "total": stat["cntWeapon4"]},
@@ -342,7 +350,8 @@ def drawPie(stat: Dict) -> Tuple[Image.Image, bool]:
     sizes = [p["total"] for p in partMap if p["total"]]
     explode = [(0.05 if "五星" in p["label"] else 0) for p in partMap if p["total"]]
     # 绘制饼图
-    textprops = {"fontproperties": fm.FontProperties(fname=PIE_FONT, size=18)}  # type: ignore
+    fontproperties = fm.FontProperties(fname=PIE_FONT, size=18)  # type: ignore
+    textprops = {"fontproperties": fontproperties}
     fig, ax = plt.subplots()
     ax.pie(
         sizes,
@@ -378,6 +387,7 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
     * ``param uid: str`` 用户 UID
     - ``return: bytes`` 图片字节数据
     """
+
     wishStat = await calcStat(rawData)
     gotPool = [key for key in wishStat if wishStat[key]["total"] > 0]
     imageList = []
@@ -422,7 +432,9 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         # 绘制卡池运势
         star5Data: List[Dict] = poolStat["star5"]
         star5Avg = (
-            sum(item["count"] for item in star5Data) / len(star5Data) if star5Data else 0
+            sum(item["count"] for item in star5Data) / len(star5Data)
+            if star5Data
+            else 0
         )
         poolTag, poolTagBg, poolTagEdge = getPoolTag(round(star5Avg))
         tDraw.rounded_rectangle(
@@ -474,7 +486,9 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
                     "#1890ff"
                     if txtIdx in [1, 3]
                     else percent(
-                        (pityCnt - int(text)) if int(text) < 91 else (pityCnt - notStar5),
+                        (pityCnt - int(text))
+                        if int(text) < 91
+                        else (pityCnt - notStar5),
                         pityCnt,
                         "rgb",
                     )
@@ -562,6 +576,7 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
     * ``param uid: str`` 用户 UID
     - ``return: bytes`` 图片字节数据
     """
+
     scope, achievements = await calcAchievement(rawData)
     result = Image.new("RGBA", (720, 110 * len(achievements) + 10 + 100), "#f9f9f9")
     drawer = ImageDraw.Draw(result)

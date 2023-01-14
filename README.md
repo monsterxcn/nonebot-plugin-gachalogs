@@ -4,20 +4,28 @@
 <p align="center">🤖 用于分析与管理原神祈愿记录的 NoneBot2 插件</p></br>
 
 
-<p align="center"><b>现已支持祈愿历史记录链接自动更新！</b></p></br>
-
-
 <p align="center">
   <a href="https://github.com/monsterxcn/nonebot-plugin-gachalogs/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/monsterxcn/nonebot-plugin-gachalogs/publish.yml?branch=main&style=flat-square" alt="actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/monsterxcn/nonebot-plugin-gachalogs/publish.yml?branch=main" alt="actions">
   </a>
   <a href="https://raw.githubusercontent.com/monsterxcn/nonebot-plugin-gachalogs/master/LICENSE">
-    <img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gachalogs?style=flat-square" alt="license">
+    <img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gachalogs" alt="license">
   </a>
   <a href="https://pypi.python.org/pypi/nonebot-plugin-gachalogs">
-    <img src="https://img.shields.io/pypi/v/nonebot-plugin-gachalogs?style=flat-square" alt="pypi">
+    <img src="https://img.shields.io/pypi/v/nonebot-plugin-gachalogs" alt="pypi">
   </a>
-  <img src="https://img.shields.io/badge/python-3.8+-blue?style=flat-square" alt="python"><br />
+  <a href="https://www.python.org/">
+    <img src="https://img.shields.io/badge/python-3.8+-blue" alt="python" />
+  </a><br />
+  <a href="https://github.com/psf/black">
+    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black" />
+  </a>
+  <a href="https://pycqa.github.io/isort">
+    <img src="https://img.shields.io/badge/%20imports-isort-%231674b1?&labelColor=ef8336" alt="Imports: isort" />
+  </a>
+  <a href="https://results.pre-commit.ci/latest/github/monsterxcn/nonebot-plugin-gachalogs/main">
+    <img src="https://results.pre-commit.ci/badge/github/monsterxcn/nonebot-plugin-gachalogs/main.svg" alt="pre-commit" />
+  </a>
 </p></br>
 
 
@@ -28,7 +36,7 @@
 ## 安装方法
 
 
-如果你正在使用 2.0.0.beta1 以上版本 NoneBot，推荐使用以下命令安装：
+如果你正在使用 2.0.0.beta1 以上版本 NoneBot2，推荐使用以下命令安装：
 
 
 ```bash

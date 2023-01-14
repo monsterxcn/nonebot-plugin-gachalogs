@@ -1,34 +1,30 @@
-from pathlib import Path
 from typing import Dict
+from pathlib import Path
 
-from nonebot import on_command, on_notice
-from nonebot.adapters import Bot as rBot
-from nonebot.adapters import Event as rEvent
-from nonebot.log import logger
 from nonebot.rule import Rule
+from nonebot.log import logger
 from nonebot.typing import T_State
-
-try:
-    from nonebot.adapters.onebot.v11 import ActionFailed, Bot, Message, MessageSegment
-    from nonebot.adapters.onebot.v11.event import (
-        GroupMessageEvent,
-        MessageEvent,
-        NoticeEvent,
-    )
-except ImportError:
-    from nonebot.adapters.cqhttp import ActionFailed, Bot, Message, MessageSegment  # type: ignore
-    from nonebot.adapters.cqhttp.event import GroupMessageEvent, MessageEvent, NoticeEvent  # type: ignore
+from nonebot.adapters import Bot as rBot
+from nonebot import on_notice, on_command
+from nonebot.adapters import Event as rEvent
+from nonebot.adapters.onebot.v11.exception import ActionFailed
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
+from nonebot.adapters.onebot.v11.event import (
+    NoticeEvent,
+    MessageEvent,
+    GroupMessageEvent,
+)
 
 from .__meta__ import SAFE_GROUP
 from .data_export import gnrtGachaFile
 from .data_import import importGachaFile
-from .data_render import gnrtGachaArchieve, gnrtGachaInfo
+from .data_render import gnrtGachaInfo, gnrtGachaArchieve
 from .data_source import (
+    logsHelper,
     checkAuthKey,
     configHelper,
-    getFullGachaLogs,
-    logsHelper,
     updateLogsUrl,
+    getFullGachaLogs,
 )
 
 
@@ -66,7 +62,9 @@ async def mainInit(bot: Bot, event: MessageEvent, state: T_State):
     state["force"] = any(arg in ["-f", "--force", "刷新"] for arg in args)
     logger.debug(f"QQ{qq} {'' if state['force'] else '未'}要求刷新\n触发传入参数：{args}")
     # 检查当前消息来源是否安全
-    unsafe = isinstance(event, GroupMessageEvent) and (event.group_id not in SAFE_GROUP)  # type: ignore
+    unsafe = isinstance(event, GroupMessageEvent) and (
+        event.group_id not in SAFE_GROUP
+    )  # type: ignore
     # 读取配置数据
     cfg = await configHelper(qq)
     if cfg.get("error"):
@@ -190,7 +188,9 @@ async def gachaAchievement(bot: Bot, event: MessageEvent, state: T_State):
 @eMatcher.handle()
 async def gachaExport(bot: Bot, event: MessageEvent, state: T_State):
     qq = event.get_user_id()
-    unsafe = isinstance(event, GroupMessageEvent) and (event.group_id not in SAFE_GROUP)  # type: ignore
+    unsafe = isinstance(event, GroupMessageEvent) and (
+        event.group_id not in SAFE_GROUP
+    )  # type: ignore
     # 提取导出目标 QQ 及导出方式
     target = {"qq": qq, "type": "xlsx"}
     for msgSeg in event.message:

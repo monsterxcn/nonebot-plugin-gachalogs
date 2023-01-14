@@ -1,13 +1,13 @@
 import asyncio
-from collections import Counter
 from datetime import datetime
+from collections import Counter
 from typing import Dict, List, Tuple
 
+from pytz import timezone
 from nonebot.log import logger
 from nonebot.utils import run_sync
-from pytz import timezone
 
-from .__meta__ import GACHA_TYPE, POOL_INFO
+from .__meta__ import POOL_INFO, GACHA_TYPE
 
 
 @run_sync
@@ -27,7 +27,7 @@ def getLogsAnalysis(gachaLogs: Dict) -> Dict:
             analysis["null"] += [banner]  # 未抽卡池统计
             continue
 
-        gachaList.reverse()  # 千万不可以 gachaList.sort(key=lambda item: item["time"], reverse=False)
+        gachaList.reverse()
         pityCounter = 0  # 保底计数
 
         # 遍历某个卡池全部记录
@@ -119,7 +119,11 @@ def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
         achievements.append(
             {
                 "title": "「欧皇时刻」",
-                "info": f"只抽了 {minPityItem['pity']} 次就抽到了{mergeItemStr(_results)}{'，你的欧气无人能敌！' if minPityItem['pity'] <= 5 else ''}",
+                "info": "只抽了 {} 次就抽到了{}{}".format(
+                    minPityItem["pity"],
+                    mergeItemStr(_results),
+                    "，你的欧气无人能敌！" if minPityItem["pity"] <= 5 else "",
+                ),
                 "achievedTime": minPityItem["time"].replace("-", "/"),
                 "value": "达成" if len(_results) == 1 else f"总计 {len(_results)}",
             }
@@ -134,7 +138,11 @@ def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
         achievements.append(
             {
                 "title": "「原来非酋竟是我自己」",
-                "info": f"抽了 {maxPityItem['pity']} 次才最终抽到了{mergeItemStr(_results)}{f'，你竟是{_rarity}里挑一的非酋！' if minPityItem['pity'] >= 84 else ''}",
+                "info": "抽了 {} 次才最终抽到了{}{}".format(
+                    maxPityItem["pity"],
+                    mergeItemStr(_results),
+                    f"，你竟是{_rarity}里挑一的非酋！" if minPityItem["pity"] >= 84 else "",
+                ),
                 "achievedTime": maxPityItem["time"].replace("-", "/"),
                 "value": "达成" if len(_results) == 1 else f"总计 {len(_results)}",
             }
@@ -225,7 +233,9 @@ def gachaMaxDay(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
         achievements.append(
             {
                 "title": "「豪掷千金」",
-                "info": f"在 {dayDisplay} 这一天，你共抽取了 {days[dayIdx]['count']} 次。在抽到{mergeItemStr(_five)}时，你有没有很开心呢？",
+                "info": "在 {} 这一天，你共抽取了 {} 次。在抽到{}时，你有没有很开心呢？".format(
+                    dayDisplay, days[dayIdx]["count"], mergeItemStr(_five)
+                ),
                 "achievedTime": dayDisplay,
                 "value": "达成",
             }
@@ -319,7 +329,9 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
         )
         _achievement = {
             "title": "「单抽出奇迹？」",
-            "info": f"在 {miracleLimit} 抽内获取五星共计 {miracle['single'] + miracle['ten']} 次，其中{_str}",
+            "info": "在 {} 抽内获取五星共计 {} 次，其中{}".format(
+                miracleLimit, miracle["single"] + miracle["ten"], _str
+            ),
         }
         if miracle["ten"] and miracle["single"] / miracle["ten"] < miraclePct:
             _achievement["title"] = "「十连出奇迹！」"
@@ -347,7 +359,9 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
             [
                 {
                     "title": f"「{_map[int(k) - 4]}」",
-                    "info": f"在一次十连中，你抽取到了 {k} 个四星或五星{'，这何尝不是另类的欧皇！' if int(k) > 4 else ''}",
+                    "info": "在一次十连中，你抽取到了 {} 个四星或五星{}".format(
+                        k, "，这何尝不是另类的欧皇！" if int(k) > 4 else ""
+                    ),
                     "achievedTime": v["first"].split()[0].replace("-", "/"),
                     "value": "达成" if v["count"] == 1 else f"总计 {v['count']}",
                 }

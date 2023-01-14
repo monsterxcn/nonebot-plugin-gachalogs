@@ -1,10 +1,10 @@
 import json
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
 
 from httpx import stream
-from nonebot import get_driver
 from pytz import timezone
+from nonebot import get_driver
 
 cfg = get_driver().config
 
@@ -45,7 +45,9 @@ PIE_FONT = (
 )
 if not PIE_FONT.exists():
     with stream(
-        "GET", "https://cdn.monsterx.cn/bot/gachalogs/LXGW-Bold-minipie.ttf", verify=False
+        "GET",
+        "https://cdn.monsterx.cn/bot/gachalogs/LXGW-Bold-minipie.ttf",
+        verify=False,
     ) as r:
         with open(PIE_FONT, "wb") as f:
             for chunk in r.iter_bytes():
@@ -67,7 +69,9 @@ if not ACHIEVE_FONT.exists():
 ACHIEVE_BG = LOCAL_DIR / "achieve-nodetail.png"
 if not ACHIEVE_BG.exists():
     with stream(
-        "GET", "https://cdn.monsterx.cn/bot/gachalogs/achieve-nodetail.png", verify=False
+        "GET",
+        "https://cdn.monsterx.cn/bot/gachalogs/achieve-nodetail.png",
+        verify=False,
     ) as r:
         with open(ACHIEVE_BG, "wb") as f:
             for chunk in r.iter_bytes():

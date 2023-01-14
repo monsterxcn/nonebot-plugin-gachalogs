@@ -1,31 +1,31 @@
 import json
+import uuid
 import random
 import string
-import uuid
-from asyncio import sleep as asyncsleep
+from re import search
 from hashlib import md5
 from pathlib import Path
-from re import search
-from time import localtime, strftime, time
-from typing import Dict, List, Literal, Tuple, Union
 from urllib import parse
+from asyncio import sleep as asyncsleep
+from time import time, strftime, localtime
+from typing import Dict, List, Tuple, Union, Literal
 
 from httpx import AsyncClient
 from nonebot.log import logger
 
 from .__meta__ import (
+    POOL_API,
+    ROLE_API,
+    ROOT_URL,
+    LOCAL_DIR,
+    TOKEN_API,
+    EXPIRE_SEC,
+    GACHA_TYPE,
     AUTHKEY_API,
     CLIENT_SALT,
     CLIENT_TYPE,
     CLIENT_VERSION,
-    EXPIRE_SEC,
-    GACHA_TYPE,
-    LOCAL_DIR,
-    POOL_API,
-    ROLE_API,
     ROOT_OVERSEA_URL,
-    ROOT_URL,
-    TOKEN_API,
 )
 
 
@@ -36,7 +36,8 @@ def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
     * ``param input: str`` 输入内容
     * ``param find: Literal["url", "cookie"]`` 提取内容类型
     - ``return: Dict`` 提取结果，格式为 ``{"url": "链接"}`` 或 ``{"login_ticket": "xx", "stoken": "xx", ...}``，出错时返回 ``{}``
-    """
+    """  # noqa: E501
+
     if find == "cookie":
         if not input:
             return {}
@@ -67,7 +68,7 @@ def formatInput(input: str, find: Literal["url", "cookie"]) -> Dict:
         return cookieDict
     elif find == "url":
         # ref: https://ihateregex.io/expr/url
-        urlReg = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)"
+        urlReg = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)"  # noqa: E501
         matchUrl = search(urlReg, input.replace("&amp;", "&"))
         if matchUrl:
             # 找到链接后替换 Host
@@ -86,9 +87,10 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
     配置缓存助手，既可根据 QQ 读取配置，也可根据数据写入/删除配置缓存
 
     * ``param qq: str`` 目标 QQ，为 ``"0"`` 时返回全部配置
-    * ``param data: Dict = {}`` 配置数据，根据是否传入决定更新或读取，只有配置中有链接、Cookie 或抽卡记录缓存 或 配置中包含 force/delete 参数时才写入
+    * ``param data: Dict = {}`` 配置数据，根据是否传入决定更新或读取。配置中有链接、Cookie 或抽卡记录缓存 或 配置中包含 force/delete 参数时才写入
     - ``return: Dict`` 目标 QQ 的配置数据，删除时返回 ``{}``，出错时返回 ``{"error": "错误信息"}``
-    """
+    """  # noqa: E501
+
     cfgFile = LOCAL_DIR / "config.json"
     # 尝试读取本地配置文件
     if not cfgFile.exists():
@@ -140,6 +142,7 @@ async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict
     * ``param data: Dict = {}`` 抽卡记录数据，根据是否传入决定写入/删除或读取
     - ``return: Tuple[str, Dict]`` 抽卡记录所属 UID（出错时返回错误信息）、抽卡记录数据（写入/删除时固定返回 ``{}``）
     """
+
     uid = search(r"gachalogs-([0-9]{9}).json", str(file))
     if not uid:
         raise ValueError(f"记录所属 UID 不存在！{str(file)}")
@@ -172,13 +175,18 @@ async def queryMihoyo(
     cookie: str, aType: Literal["获取令牌", "获取角色", "获取卡池", "生成密钥"], data: Dict = {}
 ) -> Dict:
     """
-    米哈游接口请求，支持获取 ``stoken`` 令牌、获取指定 ``cookie`` 名下原神游戏角色数据、查询最新祈愿活动 ``gacha_id`` 卡池数据、生成用于抽卡记录查询的 ``authkey`` 密钥
+    米哈游接口请求，支持以下功能：
+    - 获取 ``stoken`` 令牌
+    - 获取指定 ``cookie`` 名下原神游戏角色数据
+    - 查询最新祈愿活动 ``gacha_id`` 卡池数据
+    - 生成用于抽卡记录查询的 ``authkey`` 密钥
 
     * ``param cookie: str`` 米哈游通行证 Cookie，获取令牌和获取卡池时可传入空
     * ``param aType: Literal["获取令牌", "获取角色", "获取卡池", "生成密钥"]`` 请求类型
     * ``param data: Dict = {}`` 请求数据，根据需要被赋值为 ``params`` ``content`` 等
     - ``return: Dict`` 请求结果，出错时返回 ``{"error": "错误信息"}``
     """
+
     if aType == "获取卡池":
         # 可能不需要每次都向米游社发起请求，此处将返回固定为常驻祈愿活动数据
         return {"type": "200", "pool": "fecafa7b6560db5f3182222395d88aaa6aaac1bc"}
@@ -205,12 +213,9 @@ async def queryMihoyo(
                 "origin": "https://webstatic.mihoyo.com",
                 "referer": "https://webstatic.mihoyo.com/",
                 "user-agent": (
-                    # "Mozilla/5.0 (Linux; Android 10; MIX 2 Build/QKQ1.190825.002; wv) "
-                    # "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
-                    # f"Chrome/83.0.4103.101 Mobile Safari/537.36 miHoYoBBS/{CLIENT_VERSION}"
-                    "Mozilla/5.0 (Linux; Android 12; SM-G977N Build/SP1A.210812.016; wv) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0"
-                    f"Chrome/104.0.5112.69 Mobile Safari/537.36 miHoYoBBS/{CLIENT_VERSION}"
+                    "Mozilla/5.0 (Linux; Android 12; SM-G977N Build/SP1A.210812.016"
+                    "; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome"
+                    f"/104.0.5112.69 Mobile Safari/537.36 miHoYoBBS/{CLIENT_VERSION}"
                 ),
                 "x-requested-with": "com.mihoyo.hyperion",
             }
@@ -262,6 +267,7 @@ async def checkAuthKey(url: str, skipFmt: bool = True) -> str:
     * ``param skipFmt: bool = True`` 是否跳过格式检查，传入 ``False`` 将根据格式检查结果修正抽卡记录链接
     - ``return: str`` 抽卡记录链接，出错时返回错误信息
     """
+
     if not skipFmt:
         urlRes = formatInput(url, find="url")
         if not urlRes:
@@ -287,7 +293,7 @@ async def checkAuthKey(url: str, skipFmt: bool = True) -> str:
             return "链接 AuthKey 失效！"
         if resJson.get("message", "") == "authkey error":
             return "链接 AuthKey 错误！"
-        # ref: https://webstatic.mihoyo.com/admin/mi18n/hk4e_cn/20190926_5d8c80193de82/20190926_5d8c80193de82-zh-cn.json
+        # ref: https://webstatic.mihoyo.com/admin/mi18n/hk4e_cn/20190926_5d8c80193de82/20190926_5d8c80193de82-zh-cn.json  # noqa: E501
         logger.error(
             f"抽卡记录链接有问题 {resJson.get('retcode', 777)} {resJson.get('message', '')}"
         )
@@ -302,7 +308,8 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
     * ``param url: str`` 抽卡记录链接
     * ``param cookie: str`` 含有 `stoken` 字段的米游社 Cookie
     - ``return: Tuple[str, Dict]`` 抽卡记录链接（出错时返回 ``"错误信息"``）、角色及 Cookie 字典数据（出错或旧链接未过期时返回 ``{}``）
-    """
+    """  # noqa: E501
+
     # 检查传入链接是否仍然有效
     url = await checkAuthKey(url)
     if url.startswith("https://"):
@@ -342,8 +349,8 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
     poolRes = await queryMihoyo("", "获取卡池")
     if not poolRes.get("pool"):
         poolRes = {
-            "type": "200",  # querys.get("init_type")
-            "pool": "fecafa7b6560db5f3182222395d88aaa6aaac1bc",  # querys.get("gacha_id")
+            "type": "200",  # init_type
+            "pool": "fecafa7b6560db5f3182222395d88aaa6aaac1bc",  # gacha_id
         }
     # 提取传入 url 中请求参数字典
     parsed = parse.urlparse(url)
@@ -359,8 +366,8 @@ async def updateLogsUrl(url: str, cookie: str) -> Tuple[str, Dict]:
             "timestamp": str(int(time())),
             "lang": "zh-cn",
             "device_type": "mobile",
-            # "ext": {"loc":{"x":-672.817138671875,"y":122.54130554199219,"z":-87.4539794921875},"platform":"IOS"},  # "platform":"Android"
-            # "game_version": "CNRELiOS2.8.0_R9182063_S9401797_D9464149",  # CNRELAndroid2.8.0_R9182063_S9401797_D9464149
+            # "ext": {"loc":{"x":-672.817138671875,"y":122.54130554199219,"z":-87.4539794921875},"platform":"IOS"},  # noqa: E501
+            # "game_version": "CNRELiOS2.8.0_R9182063_S9401797_D9464149",
             "plat_type": "android",  # ios
             "region": role["region"],
             "authkey": authkeyRes["authkey"],
@@ -400,6 +407,7 @@ def getGachaLogsApi(logUrl: str, gachaType: str, page: int, endId: int) -> str:
     * ``param endId: int`` 结束 ID（请求参数 ``end_id``）
     - ``return: str`` 指定类型抽卡记录接口
     """
+
     parsed = parse.urlparse(logUrl)
     querys = dict(parse.parse_qsl(str(parsed.query)))
     querys.update(
@@ -422,6 +430,7 @@ async def getSingleTypeLogs(logUrl: str, gachaType: str) -> List:
     * ``param gachaType: str`` 祈愿类型，实际类型应为 ``Literal["100", "200", "301", "302"]``
     - ``return: List`` 指定类型抽卡记录
     """
+
     logsList, endId, page = [], 0, 1
     async with AsyncClient() as client:
         while True:
@@ -456,6 +465,7 @@ async def getAllTypeLogs(logUrl: str) -> Dict:
     * ``param logUrl: str`` 抽卡记录链接
     - ``return: Dict`` 全部抽卡记录，格式为``{"msg": "uid 或错误信息", "logs": {}]``
     """
+
     start, uidGot, newLogs = time(), "", {}
     # 获取最新抽卡记录
     for banner in GACHA_TYPE:
@@ -484,6 +494,7 @@ async def mergeLogs(locLogs: Dict, newLogs: Dict, config: Dict, qq: str) -> Dict
     * ``param qq: str`` 目标 QQ
     - ``return: Dict`` 合并后的记录数据，格式为``{"uid": "123456789", "msg": "文字消息", "logs": {}]``
     """
+
     msgList, logs = [], {}  # 消息列表、待写入记录
     for banner in GACHA_TYPE:
         locItems, newItems = locLogs.get(banner, []), newLogs.get(banner, [])
@@ -496,7 +507,9 @@ async def mergeLogs(locLogs: Dict, newLogs: Dict, config: Dict, qq: str) -> Dict
         # UID 不同，立即单独展示最新记录
         if len(locItems) and len(newItems) and locItems[0]["uid"] != newItems[0]["uid"]:
             logger.info(
-                f"{GACHA_TYPE[banner]}({banner}) 中发现 UID 不同（{locItems[0]['uid']}!={newItems[0]['uid']}），跳过合并"
+                "{}({}) 中发现 UID 不同（{}!={}），跳过合并".format(
+                    GACHA_TYPE[banner], banner, locItems[0]["uid"], newItems[0]["uid"]
+                )
             )
             return {
                 "uid": newItems[0]["uid"],
@@ -550,6 +563,7 @@ async def getFullGachaLogs(config: Dict, qq: str, force: bool) -> Dict:
     * ``param force: bool`` 是否强制更新抽卡记录
     - ``return: Dict`` 抽卡记录数据，格式为``{"uid": "123456789", "msg": "文字消息", "logs": {}]``
     """
+
     # 读取抽卡记录缓存
     uid, locLogs = await logsHelper(config["logs"]) if config["logs"] else ("无记录", {})
     # msg = uid if not uid.isdigit() else ""

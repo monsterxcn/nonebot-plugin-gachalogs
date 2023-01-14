@@ -1,15 +1,15 @@
 import json
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Set, Tuple, Union
+from datetime import datetime
+from typing import Any, Set, Dict, Tuple, Union, Literal, Optional
 
-from httpx import AsyncClient, NetworkError
 from nonebot.log import logger
 from nonebot.utils import run_sync
+from httpx import AsyncClient, NetworkError
 
-from .__meta__ import GACHA_TYPE, LOCAL_DIR
 from .data_render import gnrtGachaInfo
-from .data_source import configHelper, logsHelper
+from .__meta__ import LOCAL_DIR, GACHA_TYPE
+from .data_source import logsHelper, configHelper
 
 
 @run_sync
@@ -101,7 +101,7 @@ async def getImportTarget(
     * ``param uid: str`` 抽卡数据归属 UID
     * ``param isSuperuser: bool`` 导入动作触发 QQ 是否为超级用户
     - ``return: Tuple[Optional[Path], str, Dict[str, Any]]`` 导入目标本地记录文件、导入目标 QQ、导入目标初始配置（出错时返回 ``{"error": "}``）
-    """
+    """  # noqa: E501
 
     configKey, config = qq, (await configHelper(qq))
 
@@ -120,7 +120,9 @@ async def getImportTarget(
             }
         if uid != config["game_uid"]:
             config = {
-                "error": f"QQ{qq} 已经有 UID{config['game_uid']} 的抽卡记录，不能导入属于 UID{uid} 的抽卡记录"
+                "error": "QQ{} 已经有 UID{} 的抽卡记录，不能导入属于 UID{} 的抽卡记录".format(
+                    qq, config["game_uid"], uid
+                )
             }
     # 超级用户可以新增或更新自己，也可以更新别人
     else:
@@ -177,7 +179,7 @@ async def revertLogs(
     * ``param uid: str`` 抽卡数据归属 UID
     * ``param timestamp: int`` 抽卡数据时间戳
     - ``return: Tuple[Dict[str, list], Dict[str, str]]`` 内部格式抽卡数据、导入结果（``{"error": "", "msg": ""}``）
-    """
+    """  # noqa: E501
 
     config["logs"] = config["logs"] or str(LOCAL_DIR / f"gachalogs-{uid}.json")
     config["time"] = timestamp
@@ -206,7 +208,7 @@ async def mergeLogs(
     * ``param uid: str`` 抽卡数据归属 UID
     * ``param timestamp: int`` 抽卡数据时间戳
     - ``return: Tuple[Dict[str, list], Dict[str, str]]`` 内部格式抽卡数据、导入结果（``{"error": "", "msg": ""}``）
-    """
+    """  # noqa: E501
     # TODO: 优化
     # 当前写的比较臃肿，主要基于以下思路：
     # 1. 导入和本地所有 id 非官方生成的都不可信任
@@ -258,7 +260,9 @@ async def mergeLogs(
                 localDict[log["time"]].append(log)
             else:
                 localDict[log["time"]] = [log]
-    assert all(len(subList) == 1 or len(subList) == 10 for subList in localDict.values())
+    assert all(
+        len(subList) == 1 or len(subList) == 10 for subList in localDict.values()
+    )
 
     # 合并中间态
     counters = {}
@@ -309,7 +313,7 @@ async def importGachaFile(
     * ``param file: Dict[str, str]`` 导入文件数据
     * ``param superusers: Set[str]`` 超级用户集合
     - ``return: Dict[str, str]`` 导入结果，``{"error": "", "bak": "", "msg": "", "img": bytes}``
-    """
+    """  # noqa: E501
 
     # 获取导入文件数据
     data = await getFileData(file["url"])

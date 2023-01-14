@@ -3,4 +3,4 @@ nonebot2-store-test.py
 *__pycache__/
 
 poetry.lock
-venv
+.venv

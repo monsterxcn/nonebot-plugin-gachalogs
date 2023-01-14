@@ -4,18 +4,19 @@
 
 import json
 from pathlib import Path
-from time import localtime, strftime, time
-from typing import Dict, Generator, List, Literal
+from time import time, strftime, localtime
+from typing import Dict, List, Literal, Generator
 
 from nonebot.log import logger
 from xlsxwriter import Workbook
 
-from .__meta__ import GACHA_TYPE, GACHA_TYPE_FULL, LOCAL_DIR
 from .data_source import logsHelper
+from .__meta__ import LOCAL_DIR, GACHA_TYPE, GACHA_TYPE_FULL
 
 
 def gnrtId() -> Generator[str, None, None]:
     """生成物品 ID"""
+
     id = 1000000000000000000
     while True:
         id = id + 1
@@ -30,6 +31,7 @@ async def transUIGF(uid: str, gachaLogs: Dict) -> Dict:
     * ``param gachaLogs: dict`` 原始请求结果
     - ``return: Dict`` UIGF 格式数据
     """
+
     uigf = {
         "info": {
             "uid": uid,
@@ -69,6 +71,7 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> Path:
     * ``param uigfList: list`` UIGF 格式数据，由 ``transUIGF()`` 生成
     - ``return: Path`` XLSX 文件路径
     """
+
     exportTime = strftime("%Y%m%d%H%M%S", localtime())
     wbPath = LOCAL_DIR / f"Wish-{uid}-{exportTime}.xlsx"
     wb = Workbook(wbPath)
@@ -195,6 +198,7 @@ async def gnrtGachaFile(config: Dict, outFormat: Literal["xlsx", "json"]) -> Dic
     * ``param outFormat: Literal["xlsx", "json"]`` 导出格式
     - ``return: Dict`` 导出结果，出错时返回 ``{"error": "错误信息"}``
     """
+
     # 无抽卡记录数据直接返回
     if not config.get("logs"):
         return {"error": "没有抽卡记录可供导出哦！"}
