@@ -2,10 +2,8 @@ from io import BytesIO
 from math import floor
 from copy import deepcopy
 from datetime import datetime
-from time import strftime, localtime
 from typing import Dict, List, Tuple, Literal
 
-from pytz import timezone
 import matplotlib.pyplot as plt
 from nonebot.log import logger
 from nonebot.utils import run_sync
@@ -21,6 +19,7 @@ from .__meta__ import (
     GACHA_TYPE,
     ACHIEVE_FONT,
     ACHIEVE_BG_DETAIL,
+    datetime_with_tz,
 )
 
 
@@ -276,9 +275,7 @@ def calcStat(gachaLogs: Dict) -> Dict:
                 # 对应星级对应类型物品 UP 总数递增
                 gotUpStar5 = False
                 if int(banner) in [301, 302]:
-                    gachaTime = timezone("Asia/Shanghai").localize(
-                        datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S")
-                    )
+                    gachaTime = datetime_with_tz(item["time"])
                     belongTo = [
                         p
                         for p in POOL_INFO
@@ -312,7 +309,7 @@ def calcStat(gachaLogs: Dict) -> Dict:
         gachaStat["cntNot5"] = counter - sum(star5Cnts)
         # 记录抽卡记录开始时间、结束时间
         if len(gachaList):
-            timeNow = strftime("%Y-%m-%d %H:%M:%S", localtime())
+            timeNow = datetime_with_tz().strftime("%Y-%m-%d %H:%M:%S")
             gachaStat["startTime"] = gachaList[0].get("time", timeNow)
             gachaStat["endTime"] = gachaList[-1].get("time", timeNow)
         # UP 物品总数
@@ -553,7 +550,7 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         resultImg.paste(img, (500 * i, 0), img)
 
     # 绘制右下角更新时间戳及 UID
-    # reportTime = strftime("%m-%d %H:%M:%S", localtime(rawData["time"]))
+    # reportTime = datetime_with_tz(rawData["time"]).strftime("%m-%d %H:%M:%S")
     stampStr = f"[{uid.replace(uid[3:-3], '***', 1)}]"
     stampW, stampH = fs(30).getbbox(stampStr)[-2:]
     tDraw.text(

@@ -1,10 +1,32 @@
 import json
+from time import time
 from pathlib import Path
-from datetime import datetime
+from typing import Union
+from datetime import datetime, timezone, timedelta
 
 from httpx import stream
-from pytz import timezone
 from nonebot import get_driver
+
+TZ = timezone(timedelta(hours=8))
+
+
+def datetime_with_tz(
+    t: Union[str, int, None] = None, fmt: str = "%Y-%m-%d %H:%M:%S"
+) -> datetime:
+    """
+    获取 ``"Asia/Shanghai"`` 时区时间
+
+    * ``param t: Union[str, int, None] = None`` 时间字符串，默认获取当前时间
+    * ``param fmt: str = "%Y-%m-%d %H:%M:%S"`` 时间字符串格式
+    - ``return: datetime`` 上海时区时间
+    """
+
+    return (
+        datetime.strptime(t, fmt).replace(tzinfo=TZ)
+        if isinstance(t, str)
+        else datetime.fromtimestamp(t or time(), TZ)
+    )
+
 
 cfg = get_driver().config
 
@@ -87,10 +109,9 @@ if not ACHIEVE_BG_DETAIL.exists():
 
 # 卡池信息
 _pools = LOCAL_DIR / "GachaEvent.json"
-if (not _pools.exists()) or (
-    timezone("Asia/Shanghai").localize(datetime.now())
-    > datetime.fromisoformat(json.loads(_pools.read_text(encoding="utf-8"))[-1]["To"])
-):
+if datetime.fromisoformat(
+    json.loads(_pools.read_text(encoding="utf-8"))[-1]["To"]
+) < datetime_with_tz() or (not _pools.exists()):
     with stream(
         "GET", "https://cdn.monsterx.cn/bot/gachalogs/GachaEvent.json", verify=False
     ) as r:

@@ -16,7 +16,6 @@ nonebot-adapter-onebot = ">=2.0.0b1"
 httpx = ">=0.20.0, <1.0.0"
 matplotlib = ">=3.5.1"
 xlsxwriter = ">=3.0.2"
-pytz = "*"
 
 [tool.poetry.dev-dependencies]
 pycln = "^2.1.2"

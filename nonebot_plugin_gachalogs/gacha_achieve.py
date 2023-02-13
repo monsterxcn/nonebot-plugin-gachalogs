@@ -3,11 +3,10 @@ from datetime import datetime
 from collections import Counter
 from typing import Dict, List, Tuple
 
-from pytz import timezone
 from nonebot.log import logger
 from nonebot.utils import run_sync
 
-from .__meta__ import POOL_INFO, GACHA_TYPE
+from .__meta__ import POOL_INFO, GACHA_TYPE, datetime_with_tz
 
 
 @run_sync
@@ -54,9 +53,7 @@ def getLogsAnalysis(gachaLogs: Dict) -> Dict:
             if rankType == 5:
                 dropSimple["pity"] = pityCounter
                 if banner in ["301", "302"]:
-                    gachaTime = timezone("Asia/Shanghai").localize(
-                        datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S")
-                    )
+                    gachaTime = datetime_with_tz(item["time"])
                     belongTo = [
                         p
                         for p in POOL_INFO
@@ -87,7 +84,7 @@ def getLogsAnalysis(gachaLogs: Dict) -> Dict:
     analysis["logs"] = dict(
         sorted(
             analysis["logs"].items(),
-            key=lambda x: datetime.strptime(x[0], "%Y-%m-%d %H:%M:%S"),
+            key=lambda x: datetime_with_tz(x[0]),
         )
     )
 
@@ -111,7 +108,7 @@ def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
 
     _fiveData = sorted(
         fiveData,
-        key=lambda x: (x["pity"], datetime.strptime(x["time"], "%Y-%m-%d")),
+        key=lambda x: (x["pity"], datetime_with_tz(x["time"], "%Y-%m-%d")),
     )
     minPityItem, maxPityItem = _fiveData[0], _fiveData[-1]
     if minPityItem["pity"] <= 30:
@@ -254,7 +251,7 @@ def gachaHamster(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
             times.append(timeStr)
 
     # 转换 datatime 对象
-    datetimes = [datetime.strptime(time, "%Y-%m-%d %H:%M:%S") for time in times]
+    datetimes = [datetime_with_tz(time) for time in times]
     # 计算最大差值、起点和终点
     diff, start, end = max((b - a, a, b) for a, b in zip(datetimes, datetimes[1:]))
     # 格式化字符串

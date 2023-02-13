@@ -3,11 +3,11 @@ import uuid
 import random
 import string
 from re import search
+from time import time
 from hashlib import md5
 from pathlib import Path
 from urllib import parse
 from asyncio import sleep as asyncsleep
-from time import time, strftime, localtime
 from typing import Dict, List, Tuple, Union, Literal
 
 from httpx import AsyncClient
@@ -26,6 +26,7 @@ from .__meta__ import (
     CLIENT_TYPE,
     CLIENT_VERSION,
     ROOT_OVERSEA_URL,
+    datetime_with_tz,
 )
 
 
@@ -570,7 +571,7 @@ async def getFullGachaLogs(config: Dict, qq: str, force: bool) -> Dict:
     if (not config["url"]) or (  # 缺少有效链接
         (not force) and (int(time()) - config["time"] < EXPIRE_SEC)  # 有缓存、未要求强制更新
     ):
-        timeStr = strftime("%m-%d %H:%M", localtime(config["time"]))
+        timeStr = datetime_with_tz(config["time"]).strftime("%m-%d %H:%M")
         timeTip = f"这是 {timeStr} 创建的缓存.." if config["time"] else "暂无本地记录！"
         logger.info(f"返回 QQ{qq} 于 {timeStr} 生成的抽卡记录缓存")
         return {"uid": uid, "msg": timeTip, "logs": locLogs}

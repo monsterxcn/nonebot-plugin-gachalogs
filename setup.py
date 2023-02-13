@@ -28,6 +28,5 @@ setuptools.setup(
         "httpx>=0.20.0,<1.0.0",
         "matplotlib>=3.5.1",
         "xlsxWriter>=3.0.2",
-        "pytz",
     ],
 )

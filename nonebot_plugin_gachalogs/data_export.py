@@ -3,15 +3,15 @@
 # https://github.com/sunfkny/genshin-gacha-export/blob/main/writeXLSX.py
 
 import json
+from time import time
 from pathlib import Path
-from time import time, strftime, localtime
 from typing import Dict, List, Literal, Generator
 
 from nonebot.log import logger
 from xlsxwriter import Workbook
 
 from .data_source import logsHelper
-from .__meta__ import LOCAL_DIR, GACHA_TYPE, GACHA_TYPE_FULL
+from .__meta__ import LOCAL_DIR, GACHA_TYPE, GACHA_TYPE_FULL, datetime_with_tz
 
 
 def gnrtId() -> Generator[str, None, None]:
@@ -36,7 +36,7 @@ async def transUIGF(uid: str, gachaLogs: Dict) -> Dict:
         "info": {
             "uid": uid,
             "lang": "zh-cn",
-            "export_time": strftime("%Y-%m-%d %H:%M:%S", localtime()),
+            "export_time": datetime_with_tz().strftime("%Y-%m-%d %H:%M:%S"),
             "export_timestamp": int(time()),
             "export_app": "nonebot-plugin-gachalogs",
             "export_app_version": "v0.2.0",
@@ -72,7 +72,7 @@ async def transXLSX(uid: str, gachaLogs: Dict, uigfList: List) -> Path:
     - ``return: Path`` XLSX 文件路径
     """
 
-    exportTime = strftime("%Y%m%d%H%M%S", localtime())
+    exportTime = datetime_with_tz().strftime("%Y%m%d%H%M%S")
     wbPath = LOCAL_DIR / f"Wish-{uid}-{exportTime}.xlsx"
     wb = Workbook(wbPath)
     # 重排顺序为 301 302 200 100（角色、武器、常驻、新手
@@ -214,7 +214,7 @@ async def gnrtGachaFile(config: Dict, outFormat: Literal["xlsx", "json"]) -> Dic
             xlsxPath = await transXLSX(uid, gachaLogs, uigfData["list"])
             return {"msg": "导出抽卡记录 Excel 完成！", "path": xlsxPath}
         elif outFormat == "json":
-            exportTime = strftime("%Y%m%d%H%M%S", localtime())
+            exportTime = datetime_with_tz().strftime("%Y%m%d%H%M%S")
             uigfPath = LOCAL_DIR / f"UIGF-{uid}-{exportTime}.json"
             with open(uigfPath, "w", encoding="utf-8") as f:
                 json.dump(uigfData, f, ensure_ascii=False, indent=2)

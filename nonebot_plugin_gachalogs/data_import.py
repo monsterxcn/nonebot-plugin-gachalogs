@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from datetime import datetime
 from typing import Any, Set, Dict, Tuple, Union, Literal, Optional
 
 from nonebot.log import logger
@@ -8,8 +7,8 @@ from nonebot.utils import run_sync
 from httpx import AsyncClient, NetworkError
 
 from .data_render import gnrtGachaInfo
-from .__meta__ import LOCAL_DIR, GACHA_TYPE
 from .data_source import logsHelper, configHelper
+from .__meta__ import LOCAL_DIR, GACHA_TYPE, datetime_with_tz
 
 
 @run_sync
@@ -48,9 +47,7 @@ def analysisData(data: Dict[str, Any]) -> Tuple[int, str, Literal["inner", "uigf
                 uid = uid or log["uid"]
                 assert uid and uid.isdigit() and log["uid"] == uid
                 assert log["id"].isdigit()
-                _timestamp = datetime.strptime(
-                    log["time"], "%Y-%m-%d %H:%M:%S"
-                ).timestamp()
+                _timestamp = datetime_with_tz(log["time"]).timestamp()
                 timestamp = max(timestamp, _timestamp)
     # UIGF 格式验证
     elif data.get("info") and data.get("list"):
@@ -65,7 +62,7 @@ def analysisData(data: Dict[str, Any]) -> Tuple[int, str, Literal["inner", "uigf
             assert all(k in log.keys() for k in standardKeys)
             assert log.get("uid", uid) == uid
             assert log["id"].isdigit()
-            _timestamp = datetime.strptime(log["time"], "%Y-%m-%d %H:%M:%S").timestamp()
+            _timestamp = datetime_with_tz(log["time"]).timestamp()
             timestamp = max(timestamp, _timestamp)
     else:
         raise ValueError("抽卡记录导入文件格式错误！")
@@ -277,7 +274,7 @@ async def mergeLogs(
     localDict = dict(
         sorted(
             localDict.items(),
-            key=lambda x: datetime.strptime(x[0], "%Y-%m-%d %H:%M:%S"),
+            key=lambda x: datetime_with_tz(x[0]),
             reverse=True,
         )
     )
