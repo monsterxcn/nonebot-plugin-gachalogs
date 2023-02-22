@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
-from typing import Any, Set, Dict, Tuple, Union, Literal, Optional
+from datetime import datetime, timedelta
+from typing import Any, Set, Dict, List, Tuple, Union, Literal, Optional
 
 from nonebot.log import logger
 from nonebot.utils import run_sync
@@ -73,6 +74,48 @@ def analysisData(data: Dict[str, Any]) -> Tuple[int, str, Literal["inner", "uigf
     return int(timestamp), uid, format
 
 
+@run_sync
+def validateData(data: Dict[str, List[Dict]]) -> Optional[str]:
+    """
+    验证记录数据。保证记录均为单抽或十连
+
+    * ``param data: Dict[str, List[Dict]]`` 中间态记录数据（抽卡时间为键，记录列表为值）
+    - ``return: Optional[str]`` 记录首次异常时间点。数据完全合法时无返回
+    """
+
+    if all(len(logs) == 1 or len(logs) == 10 for logs in data.values()):
+        return
+
+    # 极少数十连对应两秒，遍历检查
+    verified, timeFmt = {}, "%Y-%m-%d %H:%M:%S"
+    for logsTime, logs in data.items():
+        if logsTime in verified:
+            continue
+        # 十连
+        if len(logs) == 10:
+            verified[logsTime] = "used"
+            continue
+        thisSecond = datetime.strptime(logsTime, timeFmt)
+        # 当前列表与后一秒的列表组成完整十连
+        nextKey = (thisSecond + timedelta(seconds=1)).strftime(timeFmt)
+        if data.get(nextKey) and (len(data[nextKey] + logs) == 10):
+            verified[logsTime] = "used"
+            verified[nextKey] = "used"
+            continue
+        # 当前列表与前一秒的列表组成完整十连，前一秒的列表不可被重复使用
+        lastKey = (thisSecond - timedelta(seconds=1)).strftime(timeFmt)
+        if verified.get(lastKey, "null") == "" and (len(data[lastKey] + logs) == 10):
+            verified[logsTime] = "used"
+            verified[lastKey] = "used"
+            continue
+        # 单抽（可能与后一列表组成完整十连）
+        if len(logs) == 1:
+            verified[logsTime] = ""
+            continue
+        logger.warning(f"异常的 {len(logs)} 条抽卡记录于 {logsTime}")
+        return logsTime
+
+
 async def getFileData(url: str) -> Dict:
     """获取链接对应文件的 JSON 数据"""
 
@@ -132,7 +175,7 @@ async def getImportTarget(
                     # 导入记录归属 UID 属于别人 -> 更新别人
                     configKey, config = k, v
                     break
-            # 当前 UID 不属于别人，即 L136 未修改 configKey
+            # 当前 UID 不属于别人，即 L176 未修改 configKey
             if configKey == qq:
                 # 超级用户没有抽卡记录配置 -> 新增自己
                 if config.get("error"):
@@ -237,12 +280,9 @@ async def mergeLogs(
             uigfDict[log["time"]].append(log)
         else:
             uigfDict[log["time"]] = [log]
-    try:
-        assert all(
-            len(subList) == 1 or len(subList) == 10 for subList in uigfDict.values()
-        )
-    except AssertionError:
-        return {}, {"error": "UIGF 文件中某时刻的数据既非单抽也非十连，拒绝导入异常数据！"}
+    illegal = await validateData(uigfDict)
+    if illegal:
+        return {}, {"error": f"UIGF 文件中 {illegal} 时既非单抽也非十连，拒绝导入异常数据！"}
 
     # 内部格式数据转换为中间态
     _, _local = (await logsHelper(config["logs"])) if config["logs"] else ("", {})
@@ -257,9 +297,7 @@ async def mergeLogs(
                 localDict[log["time"]].append(log)
             else:
                 localDict[log["time"]] = [log]
-    assert all(
-        len(subList) == 1 or len(subList) == 10 for subList in localDict.values()
-    )
+    # 内部格式数据均为验证通过的 UIGF 或 API 官方返回，跳过验证
 
     # 合并中间态
     counters = {}
