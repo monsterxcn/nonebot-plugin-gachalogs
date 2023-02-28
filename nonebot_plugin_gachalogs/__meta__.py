@@ -109,9 +109,9 @@ if not ACHIEVE_BG_DETAIL.exists():
 
 # 卡池信息
 _pools = LOCAL_DIR / "GachaEvent.json"
-if datetime.fromisoformat(
+if (not _pools.exists()) or datetime.fromisoformat(
     json.loads(_pools.read_text(encoding="utf-8"))[-1]["To"]
-) < datetime_with_tz() or (not _pools.exists()):
+) < datetime_with_tz():
     with stream(
         "GET", "https://cdn.monsterx.cn/bot/gachalogs/GachaEvent.json", verify=False
     ) as r:
