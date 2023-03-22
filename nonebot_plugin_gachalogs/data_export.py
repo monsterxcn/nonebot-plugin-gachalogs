@@ -47,7 +47,8 @@ async def transUIGF(uid: str, gachaLogs: Dict) -> Dict:
     # 转换数据
     for banner in GACHA_TYPE:
         gachaLog = gachaLogs.get(banner, [])
-        gachaLog = sorted(gachaLog, key=lambda i: i["time"], reverse=False)
+        gachaLog = sorted(gachaLog, key=lambda i: i["time"], reverse=True)
+        gachaLog.reverse()
         for item in gachaLog:
             item["uigf_gacha_type"] = banner
         uigf["list"].extend(gachaLog)
