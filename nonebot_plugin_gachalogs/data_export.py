@@ -36,11 +36,11 @@ async def transUIGF(uid: str, gachaLogs: Dict) -> Dict:
         "info": {
             "uid": uid,
             "lang": "zh-cn",
-            "export_time": datetime_with_tz().strftime("%Y-%m-%d %H:%M:%S"),
+            "uigf_version": "v2.3",
             "export_timestamp": int(time()),
+            "export_time": datetime_with_tz().strftime("%Y-%m-%d %H:%M:%S"),
             "export_app": "nonebot-plugin-gachalogs",
-            "export_app_version": "v0.2.0",
-            "uigf_version": "v2.2",
+            "export_app_version": "v0.2.12",
         },
         "list": [],
     }
