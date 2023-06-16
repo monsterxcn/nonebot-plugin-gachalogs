@@ -1,0 +1,33 @@
+name: Update GachaEvent.json
+
+on:
+    workflow_dispatch:
+
+jobs:
+  publish:
+    name: Update GachaEvent.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry add oss2 httpx
+
+      - name: Update JSON
+        run: poetry run python .github/update-json.py
+        env:
+          OSS_KEY_ID: ${{ secrets.OSS_KEY_ID }}
+          OSS_KEY_SECRET: ${{ secrets.OSS_KEY_SECRET }}
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_JSON_PATH: ${{ secrets.OSS_JSON_PATH }}
