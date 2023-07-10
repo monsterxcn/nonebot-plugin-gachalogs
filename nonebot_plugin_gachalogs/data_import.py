@@ -88,7 +88,7 @@ def validateData(data: Dict[str, List[Dict]]) -> Optional[str]:
 
     # 极少数十连对应两秒，遍历检查
     verified, timeFmt = {}, "%Y-%m-%d %H:%M:%S"
-    for logsTime, logs in data.items():
+    for logsTime, logs in reversed(data.items()):
         if logsTime in verified:
             continue
         # 十连
