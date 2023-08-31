@@ -27,7 +27,7 @@ async def update() -> None:
         cheat_table_content = (await client.get(SNAP_CHEAT_TABLE)).content
 
     cheat_table_csv = csv.reader(
-        cheat_table_content.decode(encoding="utf-8").splitlines()
+        cheat_table_content.decode(encoding="utf-8").splitlines()[1:]
     )
     translation_map, gacha_events = {}, []
 
