@@ -1,5 +1,4 @@
 import os
-import csv
 import json
 import asyncio
 from pathlib import Path
@@ -10,7 +9,8 @@ from httpx import AsyncClient
 
 SNAP_REPO_RAW = "https://github.com/DGP-Studio/Snap.Metadata/raw/main/"
 SNAP_GACHA_EVENT = SNAP_REPO_RAW + "Genshin/CHS/GachaEvent.json"
-SNAP_CHEAT_TABLE = SNAP_REPO_RAW + "CheatTable/CHS/AvatarAndWeapon.csv"
+GSMT_REPO_RAW = "https://github.com/monsterxcn/nonebot-plugin-gsmaterial/raw/main/"
+ID_NAME_TABLE = GSMT_REPO_RAW + "data/gsmaterial/item-alias.json"
 
 OSS_KEY_ID = os.getenv("OSS_KEY_ID")
 OSS_KEY_SECRET = os.getenv("OSS_KEY_SECRET")
@@ -24,15 +24,14 @@ async def update() -> None:
         gacha_events_json: List[Dict[str, Any]] = (
             await client.get(SNAP_GACHA_EVENT)
         ).json()
-        cheat_table_content = (await client.get(SNAP_CHEAT_TABLE)).content
+        id_name_table: Dict[Dict[str, List[str]]] = (
+            await client.get(ID_NAME_TABLE)
+        ).json()
 
-    cheat_table_csv = csv.reader(
-        cheat_table_content.decode(encoding="utf-8").splitlines()[1:]
-    )
     translation_map, gacha_events = {}, []
 
-    for row in cheat_table_csv:
-        translation_map[int(row[0])] = row[1]
+    for id, names in id_name_table.items():
+        translation_map[int(id)] = names[0]
 
     for event in gacha_events_json:
         up_orange_list = [translation_map[num] for num in event["UpOrangeList"]]
