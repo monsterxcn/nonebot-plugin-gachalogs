@@ -150,7 +150,9 @@ def colorfulFive(
                     stroke_width=int(item["up"]),
                     stroke_fill=color,
                 )
-                coordX = wordW + spaceW  # 偏移 X 轴绘制坐标使抽数与下一个物品名称间隔一个空格
+                coordX = (
+                    wordW + spaceW
+                )  # 偏移 X 轴绘制坐标使抽数与下一个物品名称间隔一个空格
             else:
                 # 当前行绘制超过最大宽度限制，且当前绘制为物品名称，逐字绘制直至超限后换行绘制
                 aval = int((maxWidth - coordX) / spaceW)  # 当前行可绘制的最大字符数
@@ -195,9 +197,11 @@ def colorfulFive(
                 (startW - fs(fontSize).getlength(extreme), coordY),
                 extreme,
                 font=fs(fontSize),
-                fill=percent(int(extreme), 80 if isWeapon else 90, "rgb")
-                if extreme.isdigit()
-                else "black",
+                fill=(
+                    percent(int(extreme), 80 if isWeapon else 90, "rgb")
+                    if extreme.isdigit()
+                    else "black"
+                ),
             )
             startW -= fs(fontSize).getlength(extreme)
     # 绘制限定五星概率统计结果
@@ -289,9 +293,11 @@ def calcStat(gachaLogs: Dict) -> Dict:
                                 banner,
                                 item["name"],
                                 item["time"],
-                                "/".join(bp["Name"] for bp in belongTo)
-                                if belongTo
-                                else "null",
+                                (
+                                    "/".join(bp["Name"] for bp in belongTo)
+                                    if belongTo
+                                    else "null"
+                                ),
                             )
                         )
                     elif item["name"] in belongTo[0]["UpPurpleList"]:
@@ -414,7 +420,10 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
         if not showStar3:
             # 绘制隐藏三星数据提示
             tDraw.text(
-                (15, poolImgH - 375 + 13), "* 三星武器数据已隐藏", font=fs(20), fill="#808080"
+                (15, poolImgH - 375 + 13),
+                "* 三星武器数据已隐藏",
+                font=fs(20),
+                fill="#808080",
             )
         # 绘制抽卡时间
         startTime: str = poolStat["startTime"].split(" ")[0]
@@ -483,9 +492,11 @@ async def gnrtGachaInfo(rawData: Dict, uid: str) -> bytes:
                     "#1890ff"
                     if txtIdx in [1, 3]
                     else percent(
-                        (pityCnt - int(text))
-                        if int(text) < 91
-                        else (pityCnt - notStar5),
+                        (
+                            (pityCnt - int(text))
+                            if int(text) < 91
+                            else (pityCnt - notStar5)
+                        ),
                         pityCnt,
                         "rgb",
                     )
@@ -644,7 +655,10 @@ async def gnrtGachaArchieve(rawData: Dict, uid: str) -> bytes:
         )
         # 详情
         if achievement.get("value"):
-            hasAchieve = achievement["achievedTime"] not in ["小保底歪的概率", "持续时间"]
+            hasAchieve = achievement["achievedTime"] not in [
+                "小保底歪的概率",
+                "持续时间",
+            ]
             if hasAchieve:
                 # 绘制 达成
                 drawer.text(

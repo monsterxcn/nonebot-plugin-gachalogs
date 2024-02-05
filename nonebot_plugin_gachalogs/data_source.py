@@ -132,7 +132,11 @@ async def configHelper(qq: str, data: Dict = {}) -> Dict:
             logger.opt(exception=e).error(f"QQ{qq} 的配置缓存{modeStr}失败")
             return {"error": f"QQ{qq} 的配置缓存{modeStr}失败！"}
     else:
-        return cfg if qq == "0" else cfg.get(qq, {"error": f"暂无 QQ{qq} 的抽卡记录配置！"})
+        return (
+            cfg
+            if qq == "0"
+            else cfg.get(qq, {"error": f"暂无 QQ{qq} 的抽卡记录配置！"})
+        )
 
 
 async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict]:
@@ -173,7 +177,9 @@ async def logsHelper(file: Union[Path, str], data: Dict = {}) -> Tuple[str, Dict
 
 
 async def queryMihoyo(
-    cookie: str, aType: Literal["获取令牌", "获取角色", "获取卡池", "生成密钥"], data: Dict = {}
+    cookie: str,
+    aType: Literal["获取令牌", "获取角色", "获取卡池", "生成密钥"],
+    data: Dict = {},
 ) -> Dict:
     """
     米哈游接口请求，支持以下功能：
@@ -566,10 +572,13 @@ async def getFullGachaLogs(config: Dict, qq: str, force: bool) -> Dict:
     """
 
     # 读取抽卡记录缓存
-    uid, locLogs = await logsHelper(config["logs"]) if config["logs"] else ("无记录", {})
+    uid, locLogs = (
+        await logsHelper(config["logs"]) if config["logs"] else ("无记录", {})
+    )
     # msg = uid if not uid.isdigit() else ""
     if (not config["url"]) or (  # 缺少有效链接
-        (not force) and (int(time()) - config["time"] < EXPIRE_SEC)  # 有缓存、未要求强制更新
+        (not force)
+        and (int(time()) - config["time"] < EXPIRE_SEC)  # 有缓存、未要求强制更新
     ):
         timeStr = datetime_with_tz(config["time"]).strftime("%m-%d %H:%M")
         timeTip = f"这是 {timeStr} 创建的缓存.." if config["time"] else "暂无本地记录！"
