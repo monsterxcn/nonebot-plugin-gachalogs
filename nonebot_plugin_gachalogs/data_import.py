@@ -282,7 +282,9 @@ async def mergeLogs(
             uigfDict[log["time"]] = [log]
     illegal = await validateData(uigfDict)
     if illegal:
-        return {}, {"error": f"UIGF 文件中 {illegal} 时既非单抽也非十连，拒绝导入异常数据！"}
+        return {}, {
+            "error": f"UIGF 文件中 {illegal} 时既非单抽也非十连，拒绝导入异常数据！"
+        }
 
     # 内部格式数据转换为中间态
     _, _local = (await logsHelper(config["logs"])) if config["logs"] else ("", {})
@@ -333,9 +335,12 @@ async def mergeLogs(
         return {}, res
 
     addMsg = "\n".join(
-        f"新增 {count} 条{GACHA_TYPE[banner]}记录.." for banner, count in counters.items()
+        f"新增 {count} 条{GACHA_TYPE[banner]}记录.."
+        for banner, count in counters.items()
     )
-    return merged, {"msg": f"成功合并 QQ{qq} 的抽卡记录！\n{addMsg or '不过似乎没有新增记录..'}"}
+    return merged, {
+        "msg": f"成功合并 QQ{qq} 的抽卡记录！\n{addMsg or '不过似乎没有新增记录..'}"
+    }
 
 
 async def importGachaFile(

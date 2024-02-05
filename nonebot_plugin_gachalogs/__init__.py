@@ -58,9 +58,13 @@ async def mainInit(bot: Bot, event: MessageEvent, state: T_State):
         if "command_arg" in list(state.get("_prefix", {}))
         else str(event.get_plaintext()).strip()
     ).split(" ")
-    args = [arg.strip() for arg in args if ("[CQ:" not in arg) and arg]  # 阻止 CQ 码入参
+    args = [
+        arg.strip() for arg in args if ("[CQ:" not in arg) and arg
+    ]  # 阻止 CQ 码入参
     state["force"] = any(arg in ["-f", "--force", "刷新"] for arg in args)
-    logger.debug(f"QQ{qq} {'' if state['force'] else '未'}要求刷新\n触发传入参数：{args}")
+    logger.debug(
+        f"QQ{qq} {'' if state['force'] else '未'}要求刷新\n触发传入参数：{args}"
+    )
     # 检查当前消息来源是否安全
     unsafe = isinstance(event, GroupMessageEvent) and (
         event.group_id not in SAFE_GROUP
@@ -73,7 +77,9 @@ async def mainInit(bot: Bot, event: MessageEvent, state: T_State):
             state["args"] = " ".join(args)
         elif unsafe:
             # 无缓存、触发时无输入、来源不安全，结束响应
-            await mainMatcher.finish("请在私聊中重试此命令添加抽卡记录链接或米游社 Cookie！")
+            await mainMatcher.finish(
+                "请在私聊中重试此命令添加抽卡记录链接或米游社 Cookie！"
+            )
         elif args:
             # 无缓存、触发时可能存在无效输入、来源安全，等待下一步输入
             state["prompt"] = "参数无效，请输入抽卡记录链接或米游社 Cookie："
@@ -114,7 +120,9 @@ async def mainGot(bot: Bot, event: MessageEvent, state: T_State):
             "region": "",
         },
     )
-    logger.debug(f"{'已' if isCached else '无'}配置 QQ{qq} got 传入参数：{args}\n初始化配置数据：{cfg}")
+    logger.debug(
+        f"{'已' if isCached else '无'}配置 QQ{qq} got 传入参数：{args}\n初始化配置数据：{cfg}"
+    )
     # 根据输入更新配置数据，configHelper 将判断是否写入新的配置
     if "https://" in args:
         # 输入链接
@@ -176,7 +184,9 @@ async def gachaAchievement(bot: Bot, event: MessageEvent, state: T_State):
     # 读取配置数据
     cfg = await configHelper(qq)
     if not cfg.get("logs"):
-        await aMatcher.finish(cfg.get("error", "请先使用一次「抽卡记录」命令！"), at_sender=True)
+        await aMatcher.finish(
+            cfg.get("error", "请先使用一次「抽卡记录」命令！"), at_sender=True
+        )
     # 生成抽卡成就
     uid, logs = await logsHelper(cfg["logs"])
     if not logs:
@@ -322,8 +332,12 @@ async def gotFile(bot: Bot, event: NoticeEvent, state: T_State):
             )
             locFile.unlink()
         except ActionFailed as e:
-            logger.opt(exception=e).error(f"QQ{sender} 备份文件 {locFile.name} 发送出错")
-            await fMatcher.send(f"QQ{sender} 备份文件未能成功发送，已保留在服务器内", at_sender=True)
+            logger.opt(exception=e).error(
+                f"QQ{sender} 备份文件 {locFile.name} 发送出错"
+            )
+            await fMatcher.send(
+                f"QQ{sender} 备份文件未能成功发送，已保留在服务器内", at_sender=True
+            )
 
     if importRes.get("error") or not importRes.get("msg"):
         await fMatcher.finish(str(importRes.get("error")) or "导入发生异常！")
