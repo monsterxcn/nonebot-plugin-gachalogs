@@ -134,7 +134,7 @@ GACHA_TYPE = {
 }
 
 # 抽卡链接地址
-ROOT_URL = "https://hk4e-api.mihoyo.com/event/gacha_info/api/getGachaLog"
+ROOT_URL = "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
 ROOT_OVERSEA_URL = ROOT_URL.replace("hk4e-api", "hk4e-api-os")
 # 米游社 API 地址
 TOKEN_API = "https://api-takumi.mihoyo.com/auth/api/getMultiTokenByLoginTicket"
