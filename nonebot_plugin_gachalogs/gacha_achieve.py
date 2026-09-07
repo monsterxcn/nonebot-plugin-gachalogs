@@ -14,7 +14,13 @@ def getLogsAnalysis(gachaLogs: Dict) -> Dict:
     """获取抽卡记录分析数据"""
 
     analysis = {
-        "all": {"5-角色": {}, "5-武器": {}, "4-角色": {}, "4-武器": {}, "3-武器": {}},  # 全物品出货统计
+        "all": {
+            "5-角色": {},
+            "5-武器": {},
+            "4-角色": {},
+            "4-武器": {},
+            "3-武器": {},
+        },  # 全物品出货统计
         "null": [],  # 未抽卡池统计
         "five": [],  # 五星物品统计
         "logs": {},  # 按抽卡时间分离记录
@@ -67,9 +73,11 @@ def getLogsAnalysis(gachaLogs: Dict) -> Dict:
                                 banner,
                                 item["name"],
                                 item["time"],
-                                "/".join(bp["Name"] for bp in belongTo)
-                                if belongTo
-                                else "null",
+                                (
+                                    "/".join(bp["Name"] for bp in belongTo)
+                                    if belongTo
+                                    else "null"
+                                ),
                             )
                         )
                     dropSimple["up"] = item["name"] in belongTo[0]["UpOrangeList"]
@@ -138,7 +146,11 @@ def gachaPityLimit(fiveData: List[Dict]) -> List[Dict[str, str]]:
                 "info": "抽了 {} 次才最终抽到了{}{}".format(
                     maxPityItem["pity"],
                     mergeItemStr(_results),
-                    f"，你竟是{_rarity}里挑一的非酋！" if minPityItem["pity"] >= 84 else "",
+                    (
+                        f"，你竟是{_rarity}里挑一的非酋！"
+                        if minPityItem["pity"] >= 84
+                        else ""
+                    ),
                 ),
                 "achievedTime": maxPityItem["time"].replace("-", "/"),
                 "value": "达成" if len(_results) == 1 else f"总计 {len(_results)}",
@@ -155,13 +167,27 @@ def gachaNotExist(nullData: List[str]) -> List[Dict[str, str]]:
     achievements = []
 
     if "100" in nullData:
-        achievements.append({"title": "「永远的新手」", "info": "没有在「新手祈愿」中进行抽卡"})
+        achievements.append(
+            {"title": "「永远的新手」", "info": "没有在「新手祈愿」中进行抽卡"}
+        )
     if "200" in nullData:
-        achievements.append({"title": "「传说中的毒池」", "info": "没有在「常驻祈愿」中进行抽卡"})
+        achievements.append(
+            {"title": "「传说中的毒池」", "info": "没有在「常驻祈愿」中进行抽卡"}
+        )
     if "301" in nullData:
-        achievements.append({"title": "「角色 UP 池？不稀罕！」", "info": "没有在「角色活动祈愿」中进行抽卡"})
+        achievements.append(
+            {
+                "title": "「角色 UP 池？不稀罕！」",
+                "info": "没有在「角色活动祈愿」中进行抽卡",
+            }
+        )
     if "302" in nullData:
-        achievements.append({"title": "「武器池？能吃吗？」", "info": "没有在「武器活动祈愿」中进行抽卡"})
+        achievements.append(
+            {
+                "title": "「武器池？能吃吗？」",
+                "info": "没有在「武器活动祈愿」中进行抽卡",
+            }
+        )
 
     return achievements
 
@@ -195,7 +221,9 @@ def gachaWrongUp(fiveData: List[Dict]) -> List[Dict[str, str]]:
         achievements[0]["info"] = "在「角色活动祈愿」中小保底歪与不歪次数持平"
     if hitCount < notHitCount:
         achievements[0]["title"] = "「雨时偏比晴时多」"
-        achievements[0]["info"] = "在「角色活动祈愿」中，小保底偏向于没有抽中当期 UP 角色"
+        achievements[0][
+            "info"
+        ] = "在「角色活动祈愿」中，小保底偏向于没有抽中当期 UP 角色"
 
     return achievements
 
@@ -322,7 +350,9 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
 
     if miracle["single"] + miracle["ten"]:
         _str = "、".join(
-            f"通过{'十连' if k == 'ten' else '单抽'}获取 {v} 次" for k, v in miracle.items() if v
+            f"通过{'十连' if k == 'ten' else '单抽'}获取 {v} 次"
+            for k, v in miracle.items()
+            if v
         )
         _achievement = {
             "title": "「单抽出奇迹？」",
@@ -351,7 +381,15 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
         )
 
     if manyGood:
-        _map = ["四叶草", "福至五彩", "六六顺意", "七星高照", "八方鸿运", "九九同心", "十全十美"]
+        _map = [
+            "四叶草",
+            "福至五彩",
+            "六六顺意",
+            "七星高照",
+            "八方鸿运",
+            "九九同心",
+            "十全十美",
+        ]
         achievements.extend(
             [
                 {
@@ -372,9 +410,11 @@ def gachaTogether(logsData: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
                 "title": "「这才是角色池！」",
                 "info": "在一次十连中，抽出的角色不少于武器",
                 "achievedTime": list(realChar.keys())[0].split()[0].replace("-", "/"),
-                "value": f"总计 {len(realChar.keys())}"
-                if len(realChar.keys()) > 1
-                else f"角色 {list(realChar.values())[0]}",
+                "value": (
+                    f"总计 {len(realChar.keys())}"
+                    if len(realChar.keys()) > 1
+                    else f"角色 {list(realChar.values())[0]}"
+                ),
             }
         )
 
